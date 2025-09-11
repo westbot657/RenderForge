@@ -1,0 +1,4 @@
+[package]
+name = "renderforge-text"
+version = "0.1.0"
+edition = "2024"

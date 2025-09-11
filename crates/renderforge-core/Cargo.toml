@@ -1,0 +1,8 @@
+[package]
+name = "renderforge-core"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+glam = {version = "0.30.5"}
+gl = {version = "0.14.0"}

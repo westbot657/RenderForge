@@ -6,3 +6,4 @@ mod atlas;
 mod texture;
 mod shader;
 mod data;
+mod registry;

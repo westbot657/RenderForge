@@ -1,9 +1,10 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::ffi::CString;
-use std::ops::MulAssign;
+use std::ops::{AddAssign, MulAssign};
 use std::rc::Rc;
-use gl::types::{GLboolean, GLenum, GLfloat, GLint, GLsizei, GLuint};
+use delegate::delegate;
+use gl::types::{GLboolean, GLenum, GLint, GLsizei, GLuint};
 use glam::{IVec2, IVec3, IVec4, Mat4, Quat, Vec2, Vec3, Vec4};
 
 #[derive(Debug, Clone, PartialEq)]
@@ -44,7 +45,6 @@ impl MatrixStack {
     pub fn get_transform(&self) -> &Mat4 {
         &self.current
     }
-
 }
 
 impl MulAssign<Mat4> for MatrixStack {
@@ -53,6 +53,26 @@ impl MulAssign<Mat4> for MatrixStack {
     }
 }
 
+impl AddAssign<Vec3> for MatrixStack {
+    /// Translates the MatrixStack
+    fn add_assign(&mut self, rhs: Vec3) {
+        self.translate(rhs);
+    }
+}
+
+impl MulAssign<Vec3> for MatrixStack {
+    /// Scales the MatrixStack
+    fn mul_assign(&mut self, rhs: Vec3) {
+        self.scale(rhs);
+    }
+}
+
+impl MulAssign<Quat> for MatrixStack {
+    /// Rotates the MatrixStack
+    fn mul_assign(&mut self, rhs: Quat) {
+        self.rotate(rhs);
+    }
+}
 
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -457,6 +477,15 @@ impl GlState {
         }
     }
 
+    pub fn front_face(&mut self, winding: Winding) {
+        if self.cull.front_face != winding {
+            self.cull.front_face = winding;
+            unsafe {
+                gl::FrontFace(winding.to_gl());
+            }
+        }
+    }
+
     pub fn blending(&mut self, enabled: bool) {
         if self.blend.enabled != enabled {
             self.blend.enabled = enabled;
@@ -477,7 +506,7 @@ impl GlState {
     /// SrcAlpha, DstRgb, and DstAlpha are type aliases for BlendFactor. SrcRgb is a wrapper, providing one more valid state
     pub fn blend_func(&mut self, src_rgb: SrcRgb, src_alpha: SrcAlpha, dst_rgb: DstRgb, dst_alpha: DstAlpha, rgb_equation: RgbEquation, alpha_equation: AlphaEquation) {
         self.blend_func_separate(src_rgb, src_alpha, dst_rgb, dst_alpha);
-
+        self.blend_equation(rgb_equation, alpha_equation);
     }
 
     pub fn blend_func_separate(&mut self, src_rgb: SrcRgb, src_alpha: SrcAlpha, dst_rgb: DstRgb, dst_alpha: DstAlpha) {
@@ -622,15 +651,6 @@ impl GlState {
         // TODO: set the rest of the states
     }
 
-}
-
-impl Drop for GlStateSnapshot {
-    fn drop(&mut self) {
-        self.true_state.borrow_mut().set_state(&self.save_state)
-    }
-}
-
-impl GlState {
     pub fn new() -> Self {
         Self {
             depth: DepthState {
@@ -677,7 +697,15 @@ impl GlState {
             uniforms: HashMap::new(),
         }
     }
+
 }
+
+impl Drop for GlStateSnapshot {
+    fn drop(&mut self) {
+        self.true_state.borrow_mut().set_state(&self.save_state)
+    }
+}
+
 
 impl GlStateManager {
 
@@ -695,4 +723,75 @@ impl GlStateManager {
         }
     }
 
+    pub fn copy_state(&self) -> GlState {
+        self.state.borrow().clone()
+    }
+
+    delegate! {
+        to self.state.borrow_mut() {
+            pub fn depth_test(&mut self, enabled: bool);
+            pub fn depth_mask(&mut self, enabled: bool);
+            pub fn culling(&mut self, enabled: bool);
+            pub fn cull_face(&mut self, face: CullFace);
+            pub fn front_face(&mut self, winding: Winding);
+            pub fn blending(&mut self, enabled: bool);
+            pub fn blend_func_both(&mut self, src: BlendFactor, dst: BlendFactor);
+            pub fn blend_func(&mut self, src_rgb: SrcRgb, src_alpha: SrcAlpha, dst_rgb: DstRgb, dst_alpha: DstAlpha, rgb_equation: RgbEquation, alpha_equation: AlphaEquation);
+            pub fn blend_func_separate(&mut self, src_rgb: SrcRgb, src_alpha: SrcAlpha, dst_rgb: DstRgb, dst_alpha: DstAlpha);
+            pub fn blend_func_rgb(&mut self, src_rgb: SrcRgb, dst_rgb: DstRgb);
+            pub fn blend_equation(&mut self, rgb_equation: RgbEquation, alpha_equation: AlphaEquation);
+            pub fn use_program(&mut self, program: GLuint);
+            pub fn bind_vao(&mut self, vao: GLuint);
+            pub fn bind_fbo(&mut self, fbo: GLuint);
+            pub fn set_uniform(&mut self, name: impl ToString, value: GLUniform);
+            pub fn bind_texture(&mut self, slot: u32, tex: GLuint);
+            pub fn bind_sampler(&mut self, slot: u32, sampler: GLuint);
+            pub fn destroy_program(&mut self, program: GLuint);
+            pub fn destroy_vbo_vec(&mut self, vbos: Vec<GLuint>);
+            pub fn destroy_vbo_box_array(&mut self, vbos: Box<[GLuint]>);
+            pub fn destroy_vao(&mut self, vao: GLuint);
+            pub fn set_state(&mut self, state: &GlState);
+        }
+    }
+
 }
+
+pub trait GLUploader {
+    fn upload_gl(&self, buffer: &mut Vec<f32>);
+}
+
+impl GLUploader for Mat4 {
+    fn upload_gl(&self, buffer: &mut Vec<f32>) {
+        buffer.append(&mut Vec::from(self.to_cols_array()))
+    }
+}
+
+impl GLUploader for Vec4 {
+    fn upload_gl(&self, buffer: &mut Vec<f32>) {
+        buffer.append(&mut vec![self.x, self.y, self.z, self.w])
+    }
+}
+
+impl GLUploader for Vec3 {
+    fn upload_gl(&self, buffer: &mut Vec<f32>) {
+        buffer.append(&mut vec![self.x, self.y, self.z])
+    }
+}
+
+impl GLUploader for Vec2 {
+    fn upload_gl(&self, buffer: &mut Vec<f32>) {
+        buffer.append(&mut vec![self.x, self.y])
+    }
+}
+
+impl GLUploader for f32 {
+    fn upload_gl(&self, buffer: &mut Vec<f32>) {
+        buffer.push(*self);
+    }
+}
+
+
+
+
+
+

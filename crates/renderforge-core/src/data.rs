@@ -22,7 +22,7 @@ impl MatrixStack {
     }
 
     pub fn push(&mut self) {
-        self.stack.push(self.current.clone())
+        self.stack.push(self.current)
     }
 
     /// panics if the stack is empty, make sure you match up every push() with a pop()
@@ -72,6 +72,57 @@ impl MulAssign<Quat> for MatrixStack {
     fn mul_assign(&mut self, rhs: Quat) {
         self.rotate(rhs);
     }
+}
+
+
+pub trait ColorLike {
+    fn to_color(&self) -> Color;
+}
+
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub struct Color {
+    r: f32,
+    g: f32,
+    b: f32,
+    a: f32,
+}
+
+impl Color {
+    pub fn rgba(r: f32, g: f32, b: f32, a: f32) -> Self {
+        Self { r, g, b, a }
+    }
+
+    pub fn rgb(r: f32, g: f32, b: f32) -> Self {
+        Self {
+            r, g, b,
+            a: 1.0
+        }
+    }
+
+    pub fn from_argb(argb: u32) -> Self {
+        let a = (argb >> 24) as f32 / 255.;
+        let r = ((argb >> 16) & 0xFF) as f32 / 255.;
+        let g = ((argb >> 8) & 0xFF) as f32 / 255.;
+        let b = (argb & 0xFF) as f32 / 255.;
+        Self { r, g, b, a }
+    }
+
+    pub fn to_tuple(&self) -> (f32, f32, f32, f32) {
+        (self.r, self.g, self.b, self.a)
+    }
+
+    pub fn to_array(&self) -> [f32; 4] {
+        [self.r, self.g, self.b, self.a] 
+    }
+
+    pub fn to_argb(&self) -> u32 {
+        let r = (self.r * 255.) as u32 & 0xFFu32;
+        let g = (self.g * 255.) as u32 & 0xFFu32;
+        let b = (self.b * 255.) as u32 & 0xFFu32;
+        let a = (self.a * 255.) as u32 & 0xFFu32;
+        (a << 24) | (r << 16) | (g << 8) | b
+    }
+
 }
 
 
@@ -362,6 +413,8 @@ pub enum GLUniform {
     IVec4(IVec4),
 }
 impl GLUniform {
+    /// # Safety
+    /// As long as loc is a valid uniform location, this method is safe.
     pub unsafe fn upload(&self, loc: GLint) {
         unsafe {
             match self {
@@ -589,7 +642,7 @@ impl GlState {
                     uniforms.insert(name, value);
                 }
             } else {
-                uniforms.insert(name.clone(), value.clone());
+                uniforms.insert(name.clone(), value);
                 let cstr = CString::new(name).unwrap();
                 let loc = gl::GetUniformLocation(self.program, cstr.as_ptr());
                 value.upload(loc);
@@ -790,6 +843,30 @@ impl GLUploader for f32 {
     }
 }
 
+impl GLUploader for Color {
+    fn upload_gl(&self, buffer: &mut Vec<f32>) {
+        buffer.append(&mut vec![self.r, self.g, self.b, self.a]);
+    }
+}
+
+
+impl Default for GlState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Default for MatrixStack {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Default for GlStateManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 
 

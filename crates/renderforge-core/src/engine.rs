@@ -6,7 +6,8 @@ use crate::registry::Registry;
 pub struct Engine {
     pub gl_state: GlStateManager,
     pub registry: Registry,
-    pub ecs: World
+    pub ecs: World,
+    pub running: bool,
 }
 
 
@@ -19,14 +20,14 @@ impl Engine {
             gl_state: GlStateManager::new(),
             registry: Registry::new(),
             ecs: World::new(),
+            running: true,
         }
     }
 
     pub fn run(self) {
         
         'mainloop: loop {
-
-            break 'mainloop;
+            
         }
     }
 

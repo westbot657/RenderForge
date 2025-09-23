@@ -13,7 +13,7 @@ pub struct Engine {
 
 
 impl Engine {
-    
+
     pub fn new() -> Self {
 
         Self {
@@ -25,9 +25,9 @@ impl Engine {
     }
 
     pub fn run(self) {
-        
+
         'mainloop: loop {
-            
+
         }
     }
 

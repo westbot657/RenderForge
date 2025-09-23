@@ -20,4 +20,12 @@ pub enum AttributeError {
     }
 }
 
+#[derive(Error, Debug)]
+pub enum AtlasError {
+    #[error("Could not fit all textures on atlas")]
+    TextureOverflow,
+
+    #[error("Cannot add texture with same id twice: '{0}'")]
+    DuplicateId(String),
+}
 

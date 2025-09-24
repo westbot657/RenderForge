@@ -26,6 +26,7 @@ pub struct Atlas {
     size: (u32, u32),
 }
 
+
 pub struct AtlasBuilder {
     size: (u32, u32),
     texture: RgbaImage,
@@ -76,6 +77,7 @@ impl AtlasRect {
 }
 
 impl AtlasBuilder {
+    /// creates a new AtlasBuilder, used to set up all the data needed to create an Atlas.
     pub fn new(size: (u32, u32), border_padding: u32, rectangle_padding: u32, min_filter: MinFilter, mag_filter: MagFilter) -> Self {
         Self {
             size,
@@ -170,6 +172,17 @@ texture_queue: Vec::new(),
         let d = DynamicImage::ImageRgba8(img);
 
         let (glid, _) = upload_image(&d, self.min_filter, self.mag_filter, TextureWrap::new(WrapMode::ClampToEdge, WrapMode::ClampToEdge));
+
+
+        #[cfg(feature = "texture-debug")]
+        {
+            let name = format!("./texture_debug-atlas-{}.png", glid);
+            let res = d.save(name);
+            if let Err(e) = res {
+                eprintln!("[RenderForge] texture-debug: Failed to save atlas to disk (GL id {})", glid);
+            }
+        }
+
 
         let atlas = Atlas {
             tex_id: glid,
@@ -270,9 +283,10 @@ impl AtlasSet {
 
         for a in &self.atlases {
             if a.has_texture(id) {
-                Some((a.get_id(), a.get_rect(id).unwrap()))
+                return Some((a.get_id(), a.get_rect(id).unwrap()))
             }
         }
+        None
     }
 
 }

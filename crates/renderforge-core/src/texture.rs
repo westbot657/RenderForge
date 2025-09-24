@@ -3,7 +3,7 @@ use image::{DynamicImage, GenericImageView};
 
 use crate::data::Color;
 
-
+#[derive(Debug, Clone, Copy)]
 pub enum MinFilter {
     LinearLinear,
     LinearNearest,
@@ -13,6 +13,7 @@ pub enum MinFilter {
     Linear,
 }
 
+#[derive(Debug, Clone, Copy)]
 pub enum MagFilter {
     Nearest,
     Linear,

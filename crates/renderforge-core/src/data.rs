@@ -470,15 +470,18 @@ pub struct GlState {
 
 }
 
+#[derive(Debug, Clone)]
 pub struct GlStateRef {
     state: Rc<RefCell<GlState>>
 }
 
+#[derive(Debug)]
 pub struct GlStateManager {
     state: Rc<RefCell<GlState>>
 }
 
 /// Dropping this will reset the GL state to match when it was created
+#[derive(Debug)]
 pub struct GlStateSnapshot {
     save_state: GlState,
     true_state: Rc<RefCell<GlState>>

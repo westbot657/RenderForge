@@ -19,14 +19,14 @@ pub struct AtlasRect {
     size: (f32, f32),
 }
 
-/// Represents a single texture atlas. Cannot be modified, use AtlasBuilder to build an Atlas
+#[derive(Debug)]
 pub struct Atlas {
     tex_id: GLuint,
     position_data: HashMap<AtlasTextureIdentifier, AtlasRect>,
     size: (u32, u32),
 }
 
-
+#[derive(Debug)]
 pub struct AtlasBuilder {
     size: (u32, u32),
     texture: RgbaImage,
@@ -37,12 +37,12 @@ pub struct AtlasBuilder {
     mag_filter: MagFilter,
 }
 
-
-/// Represents a collection of texture atlases
+#[derive(Debug)]
 pub struct AtlasSet {
     atlases: Vec<Atlas>
 }
 
+#[derive(Debug)]
 pub struct AtlasSetBuilder {
     texture_queue: Vec<(AtlasTextureIdentifier, DynamicImage)>,
     size: (u32, u32),

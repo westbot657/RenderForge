@@ -10,6 +10,7 @@ use crate::data::*;
 use crate::engine::Engine;
 use crate::errors::{AttributeError, BufferRenderError};
 
+#[derive(Debug, Clone)]
 pub struct LayoutMetaData {
     attributes: Vec<(u32, u32)>,
     stride: u32,
@@ -27,6 +28,8 @@ impl LayoutMetaData {
         }
     }
 }
+
+#[derive(Debug)]
 pub struct MeshLayout {
     mesh_layout: LayoutMetaData,
     instance_layout: LayoutMetaData,
@@ -56,6 +59,7 @@ pub trait InstancedMeshTrait {
 
 }
 
+#[derive(Debug)]
 pub struct InstancedMesh<T: InstancedMeshData, K: MeshController<T>> {
     draws: Vec<T>,
     data_controller: Option<K>,
@@ -69,9 +73,7 @@ pub struct InstancedMesh<T: InstancedMeshData, K: MeshController<T>> {
     freed: bool,
 }
 
-impl<T: InstancedMeshData, K: MeshController<T>> InstancedMeshTrait for InstancedMesh<T, K> {
-
-}
+impl<T: InstancedMeshData, K: MeshController<T>> InstancedMeshTrait for InstancedMesh<T, K> {}
 
 impl<T: InstancedMeshData, K: MeshController<T>> InstancedMesh<T, K> {
 
@@ -172,6 +174,7 @@ pub trait VertexRenderController {
     fn set_uniforms(program: GLuint);
 }
 
+#[derive(Debug)]
 pub struct VertexRenderer<T: VertexRenderController> {
     buffer: Vec<f32>,
     layout: LayoutMetaData,
@@ -285,6 +288,7 @@ impl<T: VertexRenderController> VertexRenderer<T> {
 
 }
 
+#[derive(Debug)]
 pub struct Vertex {
     parts: Vec<(u8, u8, Vec<f32>)>
 }
@@ -302,6 +306,7 @@ pub struct SimpleBufferFormat {
     normal: bool,
 }
 
+#[derive(Debug, Clone)]
 pub struct ArbitraryBufferFormat {
     /// name: String, idx: u8, size: u8
     attributes: Vec<(String, u8, u8)>,
@@ -422,6 +427,7 @@ impl Vertex {
 
 }
 
+#[derive(Debug)]
 pub struct BufferBuilder<F: BufferFormat> {
     format: F,
     current_vertex: Vertex,

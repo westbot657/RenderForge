@@ -10,6 +10,7 @@ use crate::data::*;
 use crate::engine::Engine;
 use crate::errors::{AttributeError, BufferRenderError};
 
+#[derive(Debug, Clone)]
 pub struct LayoutMetaData {
     attributes: Vec<(u32, u32)>,
     stride: u32,
@@ -27,6 +28,8 @@ impl LayoutMetaData {
         }
     }
 }
+
+#[derive(Debug)]
 pub struct MeshLayout {
     mesh_layout: LayoutMetaData,
     instance_layout: LayoutMetaData,
@@ -56,6 +59,7 @@ pub trait InstancedMeshTrait {
 
 }
 
+#[derive(Debug)]
 pub struct InstancedMesh<T: InstancedMeshData, K: MeshController<T>> {
     draws: Vec<T>,
     data_controller: Option<K>,
@@ -69,9 +73,7 @@ pub struct InstancedMesh<T: InstancedMeshData, K: MeshController<T>> {
     freed: bool,
 }
 
-impl<T: InstancedMeshData, K: MeshController<T>> InstancedMeshTrait for InstancedMesh<T, K> {
-
-}
+impl<T: InstancedMeshData, K: MeshController<T>> InstancedMeshTrait for InstancedMesh<T, K> {}
 
 impl<T: InstancedMeshData, K: MeshController<T>> InstancedMesh<T, K> {
 
@@ -172,6 +174,7 @@ pub trait VertexRenderController {
     fn set_uniforms(program: GLuint);
 }
 
+#[derive(Debug)]
 pub struct VertexRenderer<T: VertexRenderController> {
     buffer: Vec<f32>,
     layout: LayoutMetaData,
@@ -285,6 +288,7 @@ impl<T: VertexRenderController> VertexRenderer<T> {
 
 }
 
+#[derive(Debug)]
 pub struct Vertex {
     parts: Vec<(u8, u8, Vec<f32>)>
 }
@@ -302,6 +306,7 @@ pub struct SimpleBufferFormat {
     normal: bool,
 }
 
+#[derive(Debug, Clone)]
 pub struct ArbitraryBufferFormat {
     /// name: String, idx: u8, size: u8
     attributes: Vec<(String, u8, u8)>,
@@ -330,9 +335,9 @@ impl BufferFormat for SimpleBufferFormat {
 
     fn stride(&self) -> usize {
         (if self.uv { 2 } else { 0 }) +
-        (if self.normal { 3 } else { 0 }) +
-        (if self.color { 4 } else { 0 }) +
-        3
+            (if self.normal { 3 } else { 0 }) +
+            (if self.color { 4 } else { 0 }) +
+            3
     }
 
     fn get_sizes(&self) -> Vec<u8> {
@@ -422,6 +427,7 @@ impl Vertex {
 
 }
 
+#[derive(Debug)]
 pub struct BufferBuilder<F: BufferFormat> {
     format: F,
     current_vertex: Vertex,
@@ -454,7 +460,7 @@ impl<F: BufferFormat> BufferBuilder<F> {
     pub fn set_uniform(&mut self, name: impl ToString, value: GLUniform) {
         self.uniforms.insert(name.to_string(), value);
     }
-    
+
     pub fn set_sampler(&mut self, name: impl ToString, slot: u32, tex: GLuint) {
         self.samplers.insert(name.to_string(), (slot, tex));
     }
@@ -503,7 +509,7 @@ impl<F: BufferFormat> BufferBuilder<F> {
             for (name, uni) in &self.uniforms {
                 gl_state.set_uniform(name, *uni);
             }
-            
+
             for (name, (slot, tex)) in &self.samplers {
                 gl_state.set_uniform(name, GLUniform::I32(*slot as i32));
                 gl_state.bind_texture(*slot, *tex);

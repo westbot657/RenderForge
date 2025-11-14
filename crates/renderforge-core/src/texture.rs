@@ -19,6 +19,7 @@ pub enum MagFilter {
     Linear,
 }
 
+#[derive(Debug, Clone, Copy)]
 pub enum WrapMode {
     Repeat,
     Mirror,
@@ -26,6 +27,7 @@ pub enum WrapMode {
     ClampToBorder,
 }
 
+#[derive(Debug, Clone)]
 pub struct TextureWrap {
     wrap_s: WrapMode,
     wrap_t: WrapMode,

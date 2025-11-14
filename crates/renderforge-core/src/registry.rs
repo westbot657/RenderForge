@@ -16,12 +16,13 @@ pub enum ResourceIdentifier {
     VertexBuffer(String),
 }
 
+#[derive(Debug)]
 pub enum Resource {
     InstancedMesh(Box<dyn InstancedMeshTrait>),
     Window(Window)
 }
 
-
+#[derive(Debug)]
 pub struct Registry {
    resources: HashMap<ResourceIdentifier, Resource> 
 }

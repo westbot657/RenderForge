@@ -7,8 +7,8 @@ use gl::types::GLuint;
 use image::{imageops, DynamicImage, GenericImageView, RgbaImage};
 use rect_packer::{Config, Packer};
 
-use crate::errors::AtlasError;
-use crate::texture::{upload_image, MagFilter, MinFilter, TextureWrap, WrapMode};
+use crate::errors_old::AtlasError;
+use crate::texture_old::{upload_image, MagFilter, MinFilter, TextureWrap, WrapMode};
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub struct AtlasTextureIdentifier(String);
@@ -269,6 +269,11 @@ impl Atlas {
     }
 }
 
+pub struct AtlasTexture {
+    pub atlas_id: GLuint,
+    pub rect: AtlasRect,
+}
+
 impl AtlasSet {
     pub fn has_texture(&self, id: &AtlasTextureIdentifier) -> bool {
         for a in &self.atlases {
@@ -279,11 +284,11 @@ impl AtlasSet {
         false
     }
 
-    pub fn get_id_and_rect(&self, id: &AtlasTextureIdentifier) -> Option<(GLuint, AtlasRect)> {
+    pub fn get_texture(&self, id: &AtlasTextureIdentifier) -> Option<AtlasTexture> {
 
         for a in &self.atlases {
             if a.has_texture(id) {
-                return Some((a.get_id(), a.get_rect(id).unwrap()))
+                return Some(AtlasTexture { atlas_id: a.get_id(), rect: a.get_rect(id).unwrap() })
             }
         }
         None

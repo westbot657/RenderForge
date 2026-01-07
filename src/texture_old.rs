@@ -1,7 +1,7 @@
 use gl::types::{GLenum, GLuint};
 use image::{DynamicImage, GenericImageView};
 
-use crate::data::Color;
+use crate::data_old::Color;
 
 #[derive(Debug, Clone, Copy)]
 pub enum MinFilter {

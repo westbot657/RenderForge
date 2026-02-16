@@ -1,4 +1,5 @@
 use crate::geometry::*;
+use crate::render::shader::Shader;
 
 pub trait InstanceData: Sized + Clone {
     fn write(&self, buffer: &mut Vec<f32>);
@@ -11,7 +12,7 @@ pub trait InstanceLayout: Sized + Clone {
 
 pub struct InstancedMesh<Geo, GLayout, ILayout>
 where
-    Geo: GeoUnit,
+    Geo: GeoUnit<Vert = GLayout::Vert>,
     GLayout: GeoLayout,
     ILayout: InstanceLayout,
 {
@@ -22,7 +23,7 @@ where
 
 impl<Geo, GLayout, ILayout> InstancedMesh<Geo, GLayout, ILayout>
 where
-    Geo: GeoUnit,
+    Geo: GeoUnit<Vert = GLayout::Vert>,
     GLayout: GeoLayout,
     ILayout: InstanceLayout + Default,
 {
@@ -33,7 +34,7 @@ where
 
 impl<Geo, GLayout, ILayout> InstancedMesh<Geo, GLayout, ILayout>
 where
-    Geo: GeoUnit,
+    Geo: GeoUnit<Vert = GLayout::Vert>,
     GLayout: GeoLayout,
     ILayout: InstanceLayout,
 {
@@ -73,7 +74,7 @@ where
 
 impl<Geo, GLayout, ILayout> BufferProvider for InstancedMesh<Geo, GLayout, ILayout>
 where
-    Geo: GeoUnit,
+    Geo: GeoUnit<Vert = GLayout::Vert>,
     GLayout: GeoLayout,
     ILayout: InstanceLayout
 {
@@ -82,6 +83,19 @@ where
     }
 }
 
+
+impl<GLayout, ILayout> Shader<GLayout, ILayout>
+where
+    GLayout: GeoLayout,
+    ILayout: InstanceLayout
+{
+    pub fn get_instanced_renderer<Geo>(&self, geometry: Geometry<Geo, GLayout>) -> InstancedMesh<Geo, GLayout, ILayout>
+    where
+        Geo: GeoUnit<Vert = GLayout::Vert>
+    {
+        InstancedMesh::new_with_layout(geometry, self.instance_layout.clone().unwrap())
+    }
+}
 
 
 

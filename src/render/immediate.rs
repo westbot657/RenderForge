@@ -1,8 +1,9 @@
 use crate::geometry::*;
+use crate::render::shader::{NullInstanceLayout, Shader};
 
 pub struct ImmediateBuffer<Geo, Layout>
 where
-    Geo: GeoUnit,
+    Geo: GeoUnit<Vert = Layout::Vert>,
     Layout: GeoLayout
 {
     inner: Geometry<Geo, Layout>
@@ -10,7 +11,7 @@ where
 
 impl<Geo, Layout> ImmediateBuffer<Geo, Layout>
 where
-    Geo: GeoUnit,
+    Geo: GeoUnit<Vert = Layout::Vert>,
     Layout: GeoLayout + Default
 {
     pub fn new() -> Self {
@@ -20,7 +21,7 @@ where
 
 impl<Geo, Layout> ImmediateBuffer<Geo, Layout>
 where
-    Geo: GeoUnit,
+    Geo: GeoUnit<Vert = Layout::Vert>,
     Layout: GeoLayout
 {
     pub fn new_with_layout(layout: Layout) -> Self {
@@ -37,7 +38,7 @@ where
 
 impl<Geo, Layout> BufferProvider for ImmediateBuffer<Geo, Layout>
 where
-    Geo: GeoUnit,
+    Geo: GeoUnit<Vert = Layout::Vert>,
     Layout: GeoLayout
 {
     fn get_buffer(&self) -> Vec<f32> {
@@ -46,23 +47,33 @@ where
 }
 
 
-impl<Layout, Vert> ImmediateBuffer<Quad<Vert>, Layout>
+impl<Layout> ImmediateBuffer<Quad<Layout::Vert>, Layout>
 where
-    Layout: GeoLayout,
-    Vert: Vertex
+    Layout: GeoLayout
 {
-    pub fn add_quad(&mut self, quad: Quad<Vert>) {
+    pub fn add_quad(&mut self, quad: Quad<Layout::Vert>) {
         self.inner.add_quad(quad)
     }
 }
 
-impl<Layout, Vert> ImmediateBuffer<Tri<Vert>, Layout>
+impl<Layout> ImmediateBuffer<Tri<Layout::Vert>, Layout>
 where
-    Layout: GeoLayout,
-    Vert: Vertex
+    Layout: GeoLayout
 {
-    pub fn add_tri(&mut self, tri: Tri<Vert>) {
+    pub fn add_tri(&mut self, tri: Tri<Layout::Vert>) {
         self.inner.add_tri(tri)
+    }
+}
+
+impl<Layout> Shader<Layout, NullInstanceLayout>
+where
+    Layout: GeoLayout
+{
+    pub fn get_immediate_renderer<Geo>(&self) -> ImmediateBuffer<Geo, Layout>
+    where
+        Geo: GeoUnit<Vert = Layout::Vert>
+    {
+        ImmediateBuffer::new_with_layout(self.layout.clone())
     }
 }
 

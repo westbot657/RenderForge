@@ -126,7 +126,7 @@ impl instanced::InstanceData for Data {
 
 impl<Geo, GLayout> InstancedMesh<Geo, GLayout, Layout>
 where
-    Geo: GeoUnit,
+    Geo: GeoUnit<Vert = GLayout::Vert>,
     GLayout: GeoLayout
 {
     pub fn new(geometry: Geometry<Geo, GLayout>, layout: Layout) -> Self {

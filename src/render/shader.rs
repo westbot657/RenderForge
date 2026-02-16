@@ -3,9 +3,9 @@ use crate::geometry::{GeoLayout};
 use crate::render::instanced::{InstanceData, InstanceLayout};
 
 #[derive(Copy, Clone, Default)]
-pub struct NullInstanceLayout;
+pub(crate) struct NullInstanceLayout;
 #[derive(Copy, Clone, Default)]
-pub struct NullInstanceData;
+pub(crate) struct NullInstanceData;
 
 impl InstanceData for NullInstanceData {
     fn write(&self, _: &mut Vec<f32>) {}

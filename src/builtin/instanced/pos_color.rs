@@ -33,7 +33,7 @@ impl Data {
 
 impl<Geo, GLayout> instanced::InstancedMesh<Geo, GLayout, Layout>
 where
-    Geo: GeoUnit,
+    Geo: GeoUnit<Vert = GLayout::Vert>,
     GLayout: GeoLayout
 {
     pub fn add_pos_col_data(&mut self, pos: Mat4, col: Vec4) {

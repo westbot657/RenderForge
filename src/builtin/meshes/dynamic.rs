@@ -4,16 +4,16 @@ use crate::geometry;
 use thiserror::Error;
 
 #[derive(Clone)]
-struct LayoutAttr {
-    name: String,
-    span: u16,
+pub(crate) struct LayoutAttr {
+    pub(crate) name: String,
+    pub(crate) span: u16,
 }
 
 #[derive(Clone)]
 pub struct Layout {
-    attrs: Vec<LayoutAttr>,
-    position_marker: Option<u16>,
-    normal_marker: Option<u16>
+    pub(crate) attrs: Vec<LayoutAttr>,
+    pub(crate) position_marker: Option<u16>,
+    pub(crate) normal_marker: Option<u16>
 }
 
 pub struct RawLayout {
@@ -35,7 +35,7 @@ pub struct Vertex {
 
 impl RawLayout {
 
-    fn get_idx(&self, target: Option<impl ToString>) -> Result<Option<u16>, DynamicGeometryError> {
+    fn get_idx(&self, target: Option<&str>) -> Result<Option<u16>, DynamicGeometryError> {
         Ok(match target {
             Some(s) => {
                 let s = s.to_string();
@@ -61,7 +61,7 @@ impl RawLayout {
         Ok(())
     }
 
-    pub fn build(self, position_marker: Option<impl ToString>, normal_marker: Option<impl ToString>) -> Result<Layout, DynamicGeometryError> {
+    pub fn build(self, position_marker: Option<&str>, normal_marker: Option<&str>) -> Result<Layout, DynamicGeometryError> {
         let position_marker = self.get_idx(position_marker)?;
         let normal_marker = self.get_idx(normal_marker)?;
 

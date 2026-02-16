@@ -20,8 +20,6 @@ where
     pub(crate) data: Vec<ILayout::Data>,
 }
 
-
-
 impl<Geo, GLayout, ILayout> InstancedMesh<Geo, GLayout, ILayout>
 where
     Geo: GeoUnit,

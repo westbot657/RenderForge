@@ -1,2 +1,3 @@
-mod pos;
-mod pos_color;
+pub mod pos;
+pub mod pos_color;
+pub mod dynamic;

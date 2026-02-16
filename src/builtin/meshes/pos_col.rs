@@ -1,4 +1,4 @@
-use glam::{Vec3, Vec4};
+use glam::{Mat4, Vec3, Vec4};
 use crate::*;
 
 #[derive(Copy, Clone)]
@@ -29,6 +29,9 @@ impl geometry::Vertex for Vertex {
             self.color.z,
             self.color.w,
         ])
+    }
+    fn transform(&mut self, transform: Mat4, _: Mat4) {
+        self.pos = transform.transform_point3(self.pos);
     }
 }
 

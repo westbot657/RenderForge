@@ -4,7 +4,7 @@ use crate::geometry::*;
 pub struct BatchedMesh<Geo, Layout>
 where
     Geo: GeoUnit,
-    Geo::Vert: PositionableVertex,
+    Geo::Vert: Vertex,
     Layout: GeoLayout
 {
     base_geometry: Geometry<Geo, Layout>,
@@ -14,7 +14,7 @@ where
 impl<Geo, Layout> BatchedMesh<Geo, Layout>
 where
     Geo: GeoUnit,
-    Geo::Vert: PositionableVertex,
+    Geo::Vert: Vertex,
     Layout: GeoLayout
 {
     pub fn new(base_geometry: Geometry<Geo, Layout>) -> Self {
@@ -36,7 +36,7 @@ where
 impl<Geo, Layout> BufferProvider for BatchedMesh<Geo, Layout>
 where
     Geo: GeoUnit,
-    Geo::Vert: PositionableVertex,
+    Geo::Vert: Vertex,
     Layout: GeoLayout
 {
     fn get_buffer(&self) -> Vec<f32> {
@@ -49,14 +49,11 @@ where
         }
         let mut buffer = Vec::with_capacity(size);
 
-        for pos in &self.positions {
+        for mat in &self.positions {
             let mut mesh = self.base_geometry.clone();
+            let normal_mat = mat.inverse().transpose();
             mesh.transform_vertices(|vert| {
-                let p = vert.get_pos_mut();
-                let out = pos * glam::Vec3::from_array(*p).extend(1.);
-                p[0] = out.x;
-                p[1] = out.y;
-                p[2] = out.z;
+                vert.transform(*mat, normal_mat)
             });
             mesh.write_to_buffer(&mut buffer);
         }

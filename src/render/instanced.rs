@@ -9,8 +9,6 @@ pub trait InstanceLayout: Sized + Clone {
     fn span(&self) -> usize;
 }
 
-
-
 pub struct InstancedMesh<Geo, GLayout, ILayout>
 where
     Geo: GeoUnit,
@@ -73,6 +71,17 @@ where
         buffer
     }
     
+}
+
+impl<Geo, GLayout, ILayout> BufferProvider for InstancedMesh<Geo, GLayout, ILayout>
+where
+    Geo: GeoUnit,
+    GLayout: GeoLayout,
+    ILayout: InstanceLayout
+{
+    fn get_buffer(&self) -> Vec<f32> {
+        self.get_geo_buffer()
+    }
 }
 
 

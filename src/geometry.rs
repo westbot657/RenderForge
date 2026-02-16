@@ -4,13 +4,12 @@ pub trait GeoLayout: Sized + Clone {
     fn span(&self) -> usize;
 }
 
-pub trait PositionableVertex: Vertex {
-    fn get_pos(&self) -> &[f32; 3];
-    fn get_pos_mut(&mut self) -> &mut [f32; 3];
-}
-
 pub trait Vertex: Sized + Clone {
     fn write(&self, buffer: &mut Vec<f32>);
+    fn transform(&mut self, transform: glam::Mat4, normal_transform: glam::Mat4) {
+        let _ = transform;
+        let _ = normal_transform;
+    }
 }
 
 pub trait GlData {
@@ -34,7 +33,7 @@ pub struct Tri<Vert>
 where
     Vert: Vertex
 {
-    vertices: [Vert; 3],
+    pub(crate) vertices: [Vert; 3],
 }
 
 #[derive(Clone)]
@@ -42,7 +41,7 @@ pub struct Quad<Vert>
 where
     Vert: Vertex
 {
-    vertices: [Vert; 4],
+    pub(crate) vertices: [Vert; 4],
 }
 
 impl<Vert> Tri<Vert>

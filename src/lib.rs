@@ -1,4 +1,3 @@
+pub mod geometry;
+pub mod builtin;
 pub mod render;
-pub mod types;
-pub mod material;
-pub mod mesh;

@@ -129,7 +129,5 @@ where
     Geo: GeoUnit<Vert = GLayout::Vert>,
     GLayout: GeoLayout
 {
-    pub fn new(geometry: Geometry<Geo, GLayout>, layout: Layout) -> Self {
-        Self::new_with_layout(geometry, layout)
-    }
+
 }

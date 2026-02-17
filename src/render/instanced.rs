@@ -4,6 +4,7 @@ use std::rc::Rc;
 use glow::HasContext;
 use crate::geometry::*;
 use crate::render::{Renderer, StateController};
+use crate::render::camera::Camera;
 use crate::render::shader::{Shader, Uniforms};
 use crate::render::state::{GlStateManager, StateSnapshot};
 
@@ -249,7 +250,12 @@ where
         Ok(())
     }
 
-    fn render(&mut self, gl: &glow::Context, state: &mut GlStateManager) {
+    fn render(
+        &mut self,
+        gl: &glow::Context,
+        state: &mut GlStateManager,
+        camera: &Camera
+    ) {
         match self.state {
             State::Initialized {
                 vao, vbo: _,
@@ -277,7 +283,7 @@ where
                     );
 
                     let snap = StateSnapshot::new(state);
-                    self.state_controller.set_state(state, &self.uniforms_ref);
+                    self.state_controller.set_state(state, &self.uniforms_ref, camera);
 
                     gl.draw_arrays_instanced(
                         Geo::MODE,

@@ -5,6 +5,7 @@ use glow::{Context, HasContext};
 use crate::geometry::*;
 use crate::render::shader::{NullInstanceLayout, Shader, Uniforms};
 use crate::render::{Renderer, StateController};
+use crate::render::camera::Camera;
 use crate::render::state::{GlStateManager, StateSnapshot};
 
 pub struct Buffer<Geo, Layout>
@@ -178,7 +179,12 @@ where
         Ok(())
     }
 
-    fn render(&mut self, gl: &Context, state: &mut GlStateManager) {
+    fn render(
+        &mut self,
+        gl: &Context,
+        state: &mut GlStateManager,
+        camera: &Camera,
+    ) {
         match self.state {
             State::Initialized { vao, vbo } => {
                 let geo_buffer = self.buffer.get_buffer();
@@ -196,7 +202,7 @@ where
                     );
 
                     let snap = StateSnapshot::new(state);
-                    self.state_controller.set_state(state, &self.uniforms_ref);
+                    self.state_controller.set_state(state, &self.uniforms_ref, camera);
 
                     let vertex_count = (geo_buffer.len() / self.buffer.layout().span()) as i32;
                     gl.draw_arrays(

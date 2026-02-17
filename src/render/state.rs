@@ -154,6 +154,21 @@ impl Default for RasterState {
     }
 }
 
+#[derive(Clone, Debug, PartialEq)]
+pub struct FboState {
+    target: u32,
+    fbo: Option<glow::Framebuffer>
+}
+
+impl Default for FboState {
+    fn default() -> Self {
+        Self {
+            target: glow::FRAMEBUFFER,
+            fbo: None
+        }
+    }
+}
+
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct GlState {
     pub depth: DepthState,
@@ -161,6 +176,7 @@ pub struct GlState {
     pub blend: BlendState,
     pub stencil: StencilState,
     pub raster: RasterState,
+    pub fbo: FboState,
 }
 
 pub struct GlStateManager {
@@ -202,6 +218,17 @@ impl GlStateManager {
         self.scissor_test(gl, state.raster.scissor_test);
         self.scissor_box(gl, state.raster.scissor_box);
         self.viewport(gl, state.raster.viewport);
+    }
+    
+    // fbo
+    pub fn fbo(&mut self, gl: &glow::Context, target: u32, fbo: Option<glow::Framebuffer>) {
+        if self.state.fbo.target != target || self.state.fbo.fbo != fbo {
+            self.state.fbo.target = target;
+            self.state.fbo.fbo = fbo;
+            unsafe {
+                gl.bind_framebuffer(target, fbo)
+            }
+        }
     }
 
     // depth

@@ -1,5 +1,6 @@
 use std::cell::RefCell;
 use std::rc;
+use crate::render::camera::Camera;
 use crate::render::shader::Uniforms;
 use crate::render::state::GlStateManager;
 
@@ -7,21 +8,41 @@ pub mod batched;
 pub mod buffer;
 pub mod instanced;
 pub mod shader;
-mod state;
+pub mod state;
+pub mod camera;
 
 pub trait Renderer: Sized {
     fn setup(&mut self, gl: &glow::Context) -> Result<(), String> {
         let _ = gl;
         Ok(())
     }
-    fn render(&mut self, gl: &glow::Context, state: &mut GlStateManager);
+    fn render(
+        &mut self,
+        gl: &glow::Context,
+        state: &mut GlStateManager,
+        camera: &Camera
+    );
     fn destroy(self, gl: &glow::Context) {
         let _ = gl;
     }
 }
 
+pub trait SceneRenderer {
+    fn render(
+        &mut self,
+        gl: &glow::Context,
+        state: &mut GlStateManager,
+        camera: &Camera
+    );
+}
+
 pub trait StateController: Sized {
-    fn set_state(&mut self, state: &mut GlStateManager, uniforms: &rc::Weak<RefCell<Uniforms>>);
+    fn set_state(
+        &mut self,
+        state: &mut GlStateManager,
+        uniforms: &rc::Weak<RefCell<Uniforms>>,
+        camera: &Camera
+    );
 }
 
 pub trait GlData {

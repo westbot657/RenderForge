@@ -2,6 +2,7 @@
 pub trait GeoLayout: Sized + Clone {
     type Vert: Vertex;
     fn span(&self) -> usize;
+    fn alignments(&self) -> impl Iterator<Item = u32>;
 }
 
 pub trait Vertex: Sized + Clone {
@@ -12,13 +13,11 @@ pub trait Vertex: Sized + Clone {
     }
 }
 
-pub trait GlData {
-    fn size(&self) -> usize;
-    fn write(&self, buffer: &mut Vec<f32>);
-}
 
 pub trait GeoUnit: Sized + Clone {
     const VERTEX_COUNT: usize;
+    const MODE: u32;
+    const MIN_PRIMITIVE_COUNT: usize;
     type Vert: Vertex;
     fn write(&self, buffer: &mut Vec<f32>);
     fn transform_vertices(&mut self, transformer: &impl Fn(&mut Self::Vert));
@@ -29,32 +28,47 @@ pub trait BufferProvider {
 }
 
 #[derive(Clone)]
-pub struct Tri<Vert>
-where
-    Vert: Vertex
-{
+pub struct Tri<Vert: Vertex> {
     pub(crate) vertices: [Vert; 3],
 }
 
 #[derive(Clone)]
-pub struct Quad<Vert>
-where
-    Vert: Vertex
-{
+pub struct Quad<Vert: Vertex> {
     pub(crate) vertices: [Vert; 4],
 }
 
-impl<Vert> Tri<Vert>
-where
-    Vert: Vertex
-{
-
+#[derive(Clone)]
+pub struct Lines<Vert: Vertex> {
+    pub(crate) vertices: [Vert; 2],
 }
 
-impl<Vert> Quad<Vert>
-where
-    Vert: Vertex
-{
+#[derive(Clone)]
+pub struct LineStripSegment<Vert: Vertex> {
+    pub(crate) vertex: Vert
+}
+
+#[derive(Clone)]
+pub struct LineLoopSegment<Vert: Vertex> {
+    pub(crate) vertex: Vert
+}
+
+#[derive(Clone)]
+pub struct TriangleStripSegment<Vert: Vertex> {
+    pub(crate) vertex: Vert
+}
+
+#[derive(Clone)]
+pub struct TriangleFanSegment<Vert: Vertex> {
+    pub(crate) vertex: Vert
+}
+
+#[derive(Clone)]
+pub struct Point<Vert: Vertex> {
+    pub(crate) vertex: Vert
+}
+
+
+impl<Vert: Vertex> Quad<Vert> {
     pub fn to_triangles(self) -> [Tri<Vert>; 2] {
         let [a, b, c, d] = self.vertices;
         [
@@ -72,12 +86,12 @@ where
     }
 }
 
-impl<Vert> GeoUnit for Tri<Vert>
-where
-    Vert: Vertex
-{
-    const VERTEX_COUNT: usize = 3;
 
+
+impl<Vert: Vertex> GeoUnit for Tri<Vert> {
+    const VERTEX_COUNT: usize = 3;
+    const MODE: u32 = glow::TRIANGLES;
+    const MIN_PRIMITIVE_COUNT: usize = 1;
     type Vert = Vert;
 
     fn write(&self, buffer: &mut Vec<f32>) {
@@ -85,7 +99,6 @@ where
             v.write(buffer)
         }
     }
-
     fn transform_vertices(&mut self, transformer: &impl Fn(&mut Self::Vert)) {
         for v in &mut self.vertices {
             transformer(v)
@@ -93,12 +106,10 @@ where
     }
 }
 
-impl<Vert> GeoUnit for Quad<Vert>
-where
-    Vert: Vertex
-{
+impl<Vert: Vertex> GeoUnit for Quad<Vert> {
     const VERTEX_COUNT: usize = 4;
-
+    const MODE: u32 = glow::QUADS;
+    const MIN_PRIMITIVE_COUNT: usize = 1;
     type Vert = Vert;
 
     fn write(&self, buffer: &mut Vec<f32>) {
@@ -106,11 +117,98 @@ where
             v.write(buffer)
         }
     }
-
     fn transform_vertices(&mut self, transformer: &impl Fn(&mut Self::Vert)) {
         for v in &mut self.vertices {
             transformer(v)
         }
+    }
+}
+
+impl<Vert: Vertex> GeoUnit for Lines<Vert> {
+    const VERTEX_COUNT: usize = 2;
+    const MODE: u32 = glow::LINES;
+    const MIN_PRIMITIVE_COUNT: usize = 1;
+    type Vert = Vert;
+
+    fn write(&self, buffer: &mut Vec<f32>) {
+        for v in &self.vertices {
+            v.write(buffer)
+        }
+    }
+    fn transform_vertices(&mut self, transformer: &impl Fn(&mut Self::Vert)) {
+        for v in &mut self.vertices {
+            transformer(v)
+        }
+    }
+}
+
+impl<Vert: Vertex> GeoUnit for LineStripSegment<Vert> {
+    const VERTEX_COUNT: usize = 1;
+    const MODE: u32 = glow::LINE_STRIP;
+    const MIN_PRIMITIVE_COUNT: usize = 2;
+    type Vert = Vert;
+
+    fn write(&self, buffer: &mut Vec<f32>) {
+        self.vertex.write(buffer)
+    }
+    fn transform_vertices(&mut self, transformer: &impl Fn(&mut Self::Vert)) {
+        transformer(&mut self.vertex)
+    }
+}
+
+impl<Vert: Vertex> GeoUnit for LineLoopSegment<Vert> {
+    const VERTEX_COUNT: usize = 1;
+    const MODE: u32 = glow::LINE_LOOP;
+    const MIN_PRIMITIVE_COUNT: usize = 2;
+    type Vert = Vert;
+
+    fn write(&self, buffer: &mut Vec<f32>) {
+        self.vertex.write(buffer)
+    }
+    fn transform_vertices(&mut self, transformer: &impl Fn(&mut Self::Vert)) {
+        transformer(&mut self.vertex)
+    }
+}
+
+impl<Vert: Vertex> GeoUnit for TriangleStripSegment<Vert> {
+    const VERTEX_COUNT: usize = 1;
+    const MODE: u32 = glow::TRIANGLE_STRIP;
+    const MIN_PRIMITIVE_COUNT: usize = 3;
+    type Vert = Vert;
+
+    fn write(&self, buffer: &mut Vec<f32>) {
+        self.vertex.write(buffer)
+    }
+    fn transform_vertices(&mut self, transformer: &impl Fn(&mut Self::Vert)) {
+        transformer(&mut self.vertex)
+    }
+}
+
+impl<Vert: Vertex> GeoUnit for TriangleFanSegment<Vert> {
+    const VERTEX_COUNT: usize = 1;
+    const MODE: u32 = glow::TRIANGLE_FAN;
+    const MIN_PRIMITIVE_COUNT: usize = 3;
+    type Vert = Vert;
+
+    fn write(&self, buffer: &mut Vec<f32>) {
+        self.vertex.write(buffer)
+    }
+    fn transform_vertices(&mut self, transformer: &impl Fn(&mut Self::Vert)) {
+        transformer(&mut self.vertex)
+    }
+}
+
+impl<Vert: Vertex> GeoUnit for Point<Vert> {
+    const VERTEX_COUNT: usize = 1;
+    const MODE: u32 = glow::POINTS;
+    const MIN_PRIMITIVE_COUNT: usize = 1;
+    type Vert = Vert;
+
+    fn write(&self, buffer: &mut Vec<f32>) {
+        self.vertex.write(buffer)
+    }
+    fn transform_vertices(&mut self, transformer: &impl Fn(&mut Self::Vert)) {
+        transformer(&mut self.vertex)
     }
 }
 
@@ -118,7 +216,7 @@ where
 #[derive(Clone)]
 pub struct Geometry<Geo, Layout>
 where
-    Geo: GeoUnit,
+    Geo: GeoUnit<Vert = Layout::Vert>,
     Layout: GeoLayout
 {
     pub(crate) geometry: Vec<Geo>,
@@ -127,7 +225,7 @@ where
 
 impl<Geo, Layout> Default for Geometry<Geo, Layout>
 where
-    Geo: GeoUnit,
+    Geo: GeoUnit<Vert = Layout::Vert>,
     Layout: GeoLayout + Default
 {
     fn default() -> Self {
@@ -137,7 +235,7 @@ where
 
 impl<Geo, Layout> BufferProvider for Geometry<Geo, Layout>
 where
-    Geo: GeoUnit,
+    Geo: GeoUnit<Vert = Layout::Vert>,
     Layout: GeoLayout
 {
     fn get_buffer(&self) -> Vec<f32> {
@@ -150,7 +248,7 @@ where
 
 impl<Geo, Layout> Geometry<Geo, Layout>
 where
-    Geo: GeoUnit,
+    Geo: GeoUnit<Vert = Layout::Vert>,
     Layout: GeoLayout
 {
 
@@ -185,112 +283,28 @@ where
 
 }
 
-impl<Layout, Vert> Geometry<Tri<Vert>, Layout>
+impl<Layout> Geometry<Tri<Layout::Vert>, Layout>
 where
-    Vert: Vertex,
     Layout: GeoLayout,
 {
-    pub fn add_tri(&mut self, tri: Tri<Vert>) {
+    pub fn add_tri(&mut self, tri: Tri<Layout::Vert>) {
         self.geometry.push(tri)
     }
-    pub fn add_tris(&mut self, tris: &[Tri<Vert>]) {
+    pub fn add_tris(&mut self, tris: &[Tri<Layout::Vert>]) {
         self.geometry.extend_from_slice(tris)
     }
 }
 
-impl<Layout, Vert> Geometry<Quad<Vert>, Layout>
+impl<Layout> Geometry<Quad<Layout::Vert>, Layout>
 where
-    Vert: Vertex,
     Layout: GeoLayout,
 {
-    pub fn add_quad(&mut self, quad: Quad<Vert>) {
+    pub fn add_quad(&mut self, quad: Quad<Layout::Vert>) {
         self.geometry.push(quad)
     }
-    pub fn add_quads(&mut self, quads: &[Quad<Vert>]) {
+    pub fn add_quads(&mut self, quads: &[Quad<Layout::Vert>]) {
         self.geometry.extend_from_slice(quads)
     }
 }
 
-
-
-
-impl GlData for f32 {
-    fn size(&self) -> usize { 1 }
-    fn write(&self, buffer: &mut Vec<f32>){
-        buffer.push(*self)
-    }
-}
-impl GlData for [f32; 2] {
-    fn size(&self) -> usize { 2 }
-    fn write(&self, buffer: &mut Vec<f32>) {
-        buffer.extend_from_slice(self)
-    }
-}
-impl GlData for [f32; 3] {
-    fn size(&self) -> usize { 3 }
-    fn write(&self, buffer: &mut Vec<f32>) {
-        buffer.extend_from_slice(self)
-    }
-}
-impl GlData for [f32; 4] {
-    fn size(&self) -> usize { 4 }
-    fn write(&self, buffer: &mut Vec<f32>) {
-        buffer.extend_from_slice(self)
-    }
-}
-impl GlData for [f32; 16] {
-    fn size(&self) -> usize { 16 }
-    fn write(&self, buffer: &mut Vec<f32>) {
-        buffer.extend_from_slice(self)
-    }
-}
-impl GlData for glam::Vec2 {
-    fn size(&self) -> usize { 2 }
-    fn write(&self, buffer: &mut Vec<f32>) {
-        buffer.extend_from_slice(self.as_ref())
-    }
-}
-impl GlData for glam::Vec3 {
-    fn size(&self) -> usize { 3 }
-    fn write(&self, buffer: &mut Vec<f32>) {
-        buffer.extend_from_slice(self.as_ref())
-    }
-}
-impl GlData for glam::Vec4 {
-    fn size(&self) -> usize { 4 }
-    fn write(&self, buffer: &mut Vec<f32>) {
-        buffer.extend_from_slice(self.as_ref())
-    }
-}
-impl GlData for glam::Quat {
-    fn size(&self) -> usize { 4 }
-    fn write(&self, buffer: &mut Vec<f32>) {
-        buffer.extend_from_slice(self.as_ref())
-    }
-}
-impl GlData for glam::Mat4 {
-    fn size(&self) -> usize { 16 }
-    fn write(&self, buffer: &mut Vec<f32>) {
-        buffer.extend_from_slice(self.as_ref())
-    }
-}
-
-impl GlData for u32 {
-    fn size(&self) -> usize { 1 }
-    fn write(&self, buffer: &mut Vec<f32>) {
-        buffer.push(f32::from_bits(*self))
-    }
-}
-impl GlData for i32 {
-    fn size(&self) -> usize { 1 }
-    fn write(&self, buffer: &mut Vec<f32>) {
-        buffer.push(f32::from_bits(*self as u32))
-    }
-}
-impl GlData for bool {
-    fn size(&self) -> usize { 1 }
-    fn write(&self, buffer: &mut Vec<f32>) {
-        buffer.push(f32::from_bits(*self as u32))
-    }
-}
 

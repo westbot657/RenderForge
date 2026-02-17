@@ -1,5 +1,9 @@
+use std::cell::RefCell;
+use std::collections::HashMap;
+use std::rc::Rc;
 use glow::HasContext;
 use crate::geometry::{GeoLayout};
+use crate::render::GlData;
 use crate::render::instanced::{InstanceData, InstanceLayout};
 
 #[derive(Copy, Clone, Default)]
@@ -13,8 +17,59 @@ impl InstanceData for NullInstanceData {
 impl InstanceLayout for NullInstanceLayout {
     type Data = NullInstanceData;
     fn span(&self) -> usize { 0 }
+    fn alignments(&self) -> impl Iterator<Item = u32> {
+        [].into_iter()
+    }
 }
 
+
+pub struct Uniforms {
+    values: HashMap<String, (glow::UniformLocation, Vec<f32>)>,
+    program: glow::Program,
+}
+
+impl Uniforms {
+    pub fn new(program: glow::Program) -> Self {
+        Self {
+            values: HashMap::new(),
+            program,
+        }
+    }
+
+    fn set_inner(gl: glow::Context, program: glow::Program, loc: glow::UniformLocation, val: &[f32]) {
+        unsafe {
+            match val.len() {
+                1 => gl.program_uniform_1_f32_slice(program, Some(&loc), val),
+                2 => gl.program_uniform_2_f32_slice(program, Some(&loc), val),
+                3 => gl.program_uniform_3_f32_slice(program, Some(&loc), val),
+                4 => gl.program_uniform_4_f32_slice(program, Some(&loc), val),
+                16 => gl.program_uniform_matrix_4_f32_slice(program, Some(&loc), false, val),
+                _ => {}
+            }
+        }
+    }
+
+    /// This will fail silently if the uniform name is not in the program or if the data does not fit in 1, 2, 3, 4, or 16 f32s
+    pub fn set(&mut self, gl: glow::Context, name: &str, value: &dyn GlData) {
+        let mut val = Vec::with_capacity(value.size());
+        value.write(&mut val);
+        if let Some((loc, current)) = self.values.get_mut(name) {
+            if *current != val {
+                *current = val;
+                Self::set_inner(gl, self.program, *loc, current.as_slice())
+            }
+        } else {
+            match unsafe { gl.get_uniform_location(self.program, name) } {
+                Some(loc) => {
+                    Self::set_inner(gl, self.program, loc, val.as_slice());
+                    self.values.insert(name.to_string(), (loc, val));
+                }
+                None => {}
+            }
+        }
+    }
+
+}
 
 pub struct Shader<GLayout, ILayout>
 where
@@ -23,7 +78,8 @@ where
 {
     pub(crate) program: glow::Program,
     pub(crate) layout: GLayout,
-    pub(crate) instance_layout: Option<ILayout>
+    pub(crate) instance_layout: Option<ILayout>,
+    pub(crate) uniforms: Rc<RefCell<Uniforms>>,
 }
 
 impl<GLayout, ILayout> Shader<GLayout, ILayout>
@@ -64,7 +120,8 @@ where
         Ok(Self {
             program,
             layout,
-            instance_layout
+            instance_layout,
+            uniforms: Rc::new(RefCell::new(Uniforms::new(program))),
         })
     }
 
@@ -79,25 +136,4 @@ where
     }
 }
 
-
-
-
-impl<Layout> Shader<Layout, NullInstanceLayout>
-where
-    Layout: GeoLayout
-{
-    pub fn from_instanced_shader<GLayout, ILayout>(shader: &Shader<GLayout, ILayout>) -> Result<Self, String>
-    where
-        GLayout: GeoLayout,
-        ILayout: InstanceLayout,
-        Layout: TryFrom<(GLayout, ILayout), Error = String>
-    {
-        let layout = Layout::try_from((shader.layout.clone(), shader.instance_layout.clone().unwrap()))?;
-        Ok(Self {
-            program: shader.program,
-            layout,
-            instance_layout: None
-        })
-    }
-}
 

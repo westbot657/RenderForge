@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use glam::{Mat4, Vec3};
-use crate::geometry;
+use crate::{geometry, render};
 use thiserror::Error;
 
 #[derive(Clone)]
@@ -21,7 +21,7 @@ pub struct RawLayout {
 }
 
 pub struct RawVertex<'l> {
-    attrs: HashMap<&'l str, &'l dyn geometry::GlData>,
+    attrs: HashMap<&'l str, &'l dyn render::GlData>,
     layout: &'l Layout,
 }
 
@@ -104,21 +104,21 @@ impl Layout {
 
 #[derive(Error, Debug)]
 pub enum DynamicGeometryError {
-    #[error("Vertex does not define attributes: {missing}")]
+    #[error("Vertex does not define attribute: '{missing}'")]
     IncompleteVertex { missing: String },
     #[error("Vertex does not have an attribute named '{0}'")]
     InvalidName(String),
-    #[error("Expected data to take up {expected} f32s, given data uses {found}")]
+    #[error("Expected data to take up {expected} f32s, given data uses {found} f32s")]
     IncompatibleSize { expected: usize, found: usize },
-    #[error("Name {0} not found in layout")]
+    #[error("Name '{0}' not found in layout")]
     InvalidMetaMarker(String),
-    #[error("Attribute already exists in layout: {0}")]
+    #[error("Attribute already exists in layout: '{0}'")]
     DuplicateAttribute(String),
 }
 
 impl<'l> RawVertex<'l> {
 
-    pub fn set_attr(&mut self, name: impl ToString, value: &'l dyn geometry::GlData) -> Result<(), DynamicGeometryError> {
+    pub fn set_attr(&mut self, name: impl ToString, value: &'l dyn render::GlData) -> Result<(), DynamicGeometryError> {
 
         let name = name.to_string();
 
@@ -140,7 +140,7 @@ impl<'l> RawVertex<'l> {
         Ok(())
     }
 
-    pub fn with_attr(mut self, name: impl ToString, value: &'l dyn geometry::GlData) -> Result<Self, DynamicGeometryError> {
+    pub fn with_attr(mut self, name: impl ToString, value: &'l dyn render::GlData) -> Result<Self, DynamicGeometryError> {
         self.set_attr(name, value)?;
         Ok(self)
     }
@@ -181,6 +181,9 @@ impl geometry::GeoLayout for Layout {
     type Vert = Vertex;
     fn span(&self) -> usize {
         self.attrs.iter().map(|a| a.span as usize).sum()
+    }
+    fn alignments(&self) -> impl Iterator<Item = u32> {
+        self.attrs.iter().map(|a| a.span as u32)
     }
 }
 

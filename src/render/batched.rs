@@ -1,6 +1,6 @@
 use glam::Mat4;
 use crate::geometry::*;
-use crate::render::shader::{NullInstanceLayout, Shader};
+use crate::render::buffer::{Buffer, RenderableBuffer};
 
 pub struct BatchedMesh<Geo, Layout>
 where
@@ -61,14 +61,14 @@ where
 
 }
 
-impl<Layout> Shader<Layout, NullInstanceLayout>
+impl<Geo, Layout> RenderableBuffer for BatchedMesh<Geo, Layout>
 where
+    Geo: GeoUnit<Vert = Layout::Vert>,
     Layout: GeoLayout
 {
-    pub fn get_batched_renderer<Geo>(&self) -> BatchedMesh<Geo, Layout>
-    where
-        Geo: GeoUnit<Vert = Layout::Vert>
-    {
-        BatchedMesh::new(Geometry::new_with_layout(self.layout.clone()))
+    type Geo = Geo;
+    type Layout = Layout;
+    fn layout(&self) -> &Self::Layout {
+        &self.base_geometry.layout
     }
 }

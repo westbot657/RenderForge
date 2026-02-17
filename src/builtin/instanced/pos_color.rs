@@ -1,6 +1,7 @@
+use std::borrow::Borrow;
 use glam::{Mat4, Vec4};
-use crate::geometry::{GeoLayout, GeoUnit, GlData};
-use crate::render::instanced;
+use crate::geometry::{GeoLayout, GeoUnit};
+use crate::render::*;
 
 #[derive(Copy, Clone)]
 pub struct Data {
@@ -22,6 +23,9 @@ impl instanced::InstanceLayout for Layout {
     type Data = Data;
     fn span(&self) -> usize {
         16 + 4
+    }
+    fn alignments(&self) -> impl Iterator<Item = u32> {
+        [16, 4].into_iter()
     }
 }
 

@@ -1,6 +1,6 @@
-use crate::render::instanced;
+use crate::render::*;
 use glam::Mat4;
-use crate::geometry::{GeoLayout, GeoUnit, GlData};
+use crate::geometry::{GeoLayout, GeoUnit};
 
 #[derive(Copy, Clone)]
 pub struct Data {
@@ -20,6 +20,9 @@ impl instanced::InstanceLayout for Layout {
     type Data = Data;
     fn span(&self) -> usize {
         16
+    }
+    fn alignments(&self) -> impl Iterator<Item = u32> {
+        [16].into_iter()
     }
 }
 

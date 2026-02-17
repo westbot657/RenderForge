@@ -13,6 +13,7 @@ eframe = "0.33.3"
 egui = { version = "0.33.3", features = ["mint"] }
 glow = "0.16.0"
 glam = { version = "0.32.0" }
+bytemuck = "1.25.0"
 egui_glow = "0.33.3"
 indexmap = "2.12.1"
 anyhow = { version = "1.0.100" }

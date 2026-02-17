@@ -1,7 +1,8 @@
+use std::borrow::Borrow;
 use std::collections::HashMap;
 use thiserror::Error;
 use crate::geometry::*;
-use crate::render::instanced;
+use crate::render::{instanced, GlData};
 use crate::render::instanced::InstancedMesh;
 
 #[derive(Clone)]
@@ -50,13 +51,13 @@ impl Layout {
 
 #[derive(Error, Debug)]
 pub enum DynamicInstanceError {
-    #[error("Vertex does not define attributes: {missing}")]
+    #[error("Vertex does not define attribute: '{missing}'")]
     IncompleteVertex { missing: String },
     #[error("Vertex does not have an attribute named '{0}'")]
     InvalidName(String),
-    #[error("Expected data to take up {expected} f32s, given data uses {found}")]
+    #[error("Expected data to take up {expected} f32s, given data uses {found} f32s")]
     IncompatibleSize { expected: usize, found: usize },
-    #[error("Attribute already exists in layout: {0}")]
+    #[error("Attribute already exists in layout: '{0}'")]
     DuplicateAttribute(String),
 }
 
@@ -115,6 +116,9 @@ impl instanced::InstanceLayout for Layout {
     type Data = Data;
     fn span(&self) -> usize {
         self.attrs.iter().map(|a| a.span as usize).sum()
+    }
+    fn alignments(&self) -> impl Iterator<Item = u32> {
+        self.attrs.iter().map(|a| a.span as u32)
     }
 }
 

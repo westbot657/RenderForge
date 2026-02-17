@@ -14,7 +14,10 @@ pub struct Layout;
 impl geometry::GeoLayout for Layout {
     type Vert = Vertex;
     fn span(&self) -> usize {
-        9
+        3 + 2 + 4
+    }
+    fn alignments(&self) -> impl Iterator<Item=u32> {
+        [3, 2, 4].into_iter()
     }
 }
 

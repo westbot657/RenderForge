@@ -10,7 +10,7 @@ use renderforge::builtin::components::basic::BackgroundColor;
 use renderforge::geometry::{GeoUnit, Quad};
 use renderforge::render::camera::Camera;
 use renderforge::render::scene::Scene;
-use renderforge::render::{CameraUniformsStateController, Renderer};
+use renderforge::render::{CameraUniformsStateController, EmptyStateController, MultiStateController, Renderer};
 use renderforge::render::instanced::InstancedDrawer;
 use renderforge::render::shader::Shader;
 use renderforge::render::state::GlStateManager;
@@ -223,7 +223,7 @@ impl View3d {
 
         let cube = s.shader_lib.pos_col.create_instanced_mesh(cube);
         let cube = s.shader_lib.pos_col.create_instanced_renderer(
-            cube, CameraUniformsStateController::<Arc<RwLock<SharedState>>>::new("viewMat", "projMat")
+            cube, MultiStateController::new() + CameraUniformsStateController::<Arc<RwLock<SharedState>>>::new("viewMat", "projMat") + EmptyStateController::new()
         );
 
         let pos = Mat4::from_scale(Vec3::splat(50.));

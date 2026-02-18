@@ -1,8 +1,9 @@
+use std::marker::PhantomData;
 use std::sync;
 use std::sync::{Arc, RwLock};
 use glow::{Context, HasContext};
 use crate::geometry::*;
-use crate::render::shader::{NullInstanceLayout, Shader, Uniforms};
+use crate::render::shader::{Shader, Uniforms};
 use crate::render::{Renderer, StateController};
 use crate::render::camera::Camera;
 use crate::render::state::{GlStateManager, StateSnapshot};
@@ -99,11 +100,12 @@ enum State {
     Uninitialized,
 }
 
-pub struct BufferRenderer<Geo, Layout, StateC, BufferT>
+pub struct BufferRenderer<Geo, Layout, StateC, BufferT, Shared>
 where
+    Shared: Sync + Send,
     Geo: GeoUnit<Vert = Layout::Vert> + Sized,
     Layout: GeoLayout + Sized,
-    StateC: StateController,
+    StateC: StateController<Shared>,
     BufferT: RenderableBuffer<Geo = Geo, Layout = Layout>
 {
     buffer: BufferT,
@@ -111,13 +113,15 @@ where
     state_controller: StateC,
     uniforms_ref: sync::Weak<RwLock<Uniforms>>,
     program: glow::Program,
+    _phantom: PhantomData<Shared>
 }
 
-impl<Geo, Layout, StateC, BufferT> BufferRenderer<Geo, Layout, StateC, BufferT>
+impl<Geo, Layout, StateC, BufferT, Shared> BufferRenderer<Geo, Layout, StateC, BufferT, Shared>
 where
+    Shared: Send + Sync,
     Geo: GeoUnit<Vert = Layout::Vert> + Sized,
     Layout: GeoLayout + Sized,
-    StateC: StateController,
+    StateC: StateController<Shared>,
     BufferT: RenderableBuffer<Geo = Geo, Layout = Layout>
 {
     pub fn new(
@@ -131,16 +135,18 @@ where
             state: State::Uninitialized,
             uniforms_ref,
             state_controller,
-            program
+            program,
+            _phantom: PhantomData
         }
     }
 }
 
-impl<Geo, Layout, StateC, BufferT, Shared> Renderer<Shared> for BufferRenderer<Geo, Layout, StateC, BufferT>
+impl<Geo, Layout, StateC, BufferT, Shared> Renderer<Shared> for BufferRenderer<Geo, Layout, StateC, BufferT, Shared>
 where
+    Shared: Send + Sync,
     Geo: GeoUnit<Vert = Layout::Vert> + Sized,
     Layout: GeoLayout + Sized,
-    StateC: StateController<SharedState = Shared>,
+    StateC: StateController<Shared>,
     BufferT: RenderableBuffer<Geo = Geo, Layout = Layout>
 {
     fn setup(&mut self, gl: &Context) -> Result<(), String> {
@@ -235,20 +241,21 @@ where
     }
 }
 
-impl<GLayout> Shader<GLayout, NullInstanceLayout>
+impl<GLayout> Shader<GLayout, ()>
 where
     GLayout: GeoLayout
 {
 
-    pub fn create_buffer_renderer<Geo, BufferT, StateC>(
+    pub fn create_buffer_renderer<Geo, BufferT, StateC, Shared>(
         &self,
         buffer: BufferT,
         state_controller: StateC,
-    ) -> BufferRenderer<Geo, GLayout, StateC, BufferT>
+    ) -> BufferRenderer<Geo, GLayout, StateC, BufferT, Shared>
     where
         BufferT: RenderableBuffer<Geo = Geo, Layout = GLayout>,
         Geo: GeoUnit<Vert = GLayout::Vert>,
-        StateC: StateController
+        Shared: Send + Sync,
+        StateC: StateController<Shared>
     {
         BufferRenderer::new(buffer, self.program, Arc::downgrade(&self.uniforms), state_controller)
     }

@@ -1,3 +1,4 @@
+use std::marker::PhantomData;
 use std::sync;
 use std::sync::{Arc, RwLock};
 use glow::HasContext;
@@ -102,18 +103,20 @@ enum State {
 }
 
 /// Note: Instance attributes are laid out before geometry attributes
-pub struct InstancedRenderer<Geo, GLayout, ILayout, StateC>
+pub struct InstancedRenderer<Geo, GLayout, ILayout, StateC, Shared>
 where
     Geo: GeoUnit<Vert = GLayout::Vert>,
     GLayout: GeoLayout,
     ILayout: InstanceLayout,
-    StateC: StateController
+    Shared: Sync + Send,
+    StateC: StateController<Shared>
 {
     mesh: Arc<RwLock<InstancedMesh<Geo, GLayout, ILayout>>>,
     state: State,
     uniforms_ref: sync::Weak<RwLock<Uniforms>>,
     program: glow::Program,
-    state_controller: StateC
+    state_controller: StateC,
+    _phantom: PhantomData<Shared>
 }
 
 pub struct InstancedDrawer<Geo, GLayout, ILayout>
@@ -126,12 +129,13 @@ where
 }
 
 
-impl<Geo, GLayout, ILayout, StateC> InstancedRenderer<Geo, GLayout, ILayout, StateC>
+impl<Geo, GLayout, ILayout, StateC, Shared> InstancedRenderer<Geo, GLayout, ILayout, StateC, Shared>
 where
     Geo: GeoUnit<Vert = GLayout::Vert>,
     GLayout: GeoLayout,
     ILayout: InstanceLayout,
-    StateC: StateController,
+    Shared: Sync + Send,
+    StateC: StateController<Shared>,
 {
     pub fn new(
         mesh: InstancedMesh<Geo, GLayout, ILayout>,
@@ -144,7 +148,8 @@ where
             state: State::Uninitialized,
             uniforms_ref,
             program,
-            state_controller
+            state_controller,
+            _phantom: PhantomData
         }
     }
 
@@ -157,12 +162,13 @@ where
 }
 
 
-impl<Geo, GLayout, ILayout, StateC, Shared> Renderer<Shared> for InstancedRenderer<Geo, GLayout, ILayout, StateC>
+impl<Geo, GLayout, ILayout, StateC, Shared> Renderer<Shared> for InstancedRenderer<Geo, GLayout, ILayout, StateC, Shared>
 where
     Geo: GeoUnit<Vert = GLayout::Vert>,
     GLayout: GeoLayout,
     ILayout: InstanceLayout,
-    StateC: StateController<SharedState = Shared>,
+    Shared: Sync + Send,
+    StateC: StateController<Shared>,
 {
     fn setup(&mut self, gl: &glow::Context) -> Result<(), String> {
 
@@ -364,14 +370,15 @@ where
         InstancedMesh::new_with_layout(geometry, self.instance_layout.clone().unwrap())
     }
 
-    pub fn create_instanced_renderer<Geo, StateC>(
+    pub fn create_instanced_renderer<Geo, StateC, Shared>(
         &self,
         mesh: InstancedMesh<Geo, GLayout, ILayout>,
         state_controller: StateC,
-    ) -> InstancedRenderer<Geo, GLayout, ILayout, StateC>
+    ) -> InstancedRenderer<Geo, GLayout, ILayout, StateC, Shared>
     where
         Geo: GeoUnit<Vert = GLayout::Vert>,
-        StateC: StateController,
+        Shared: Sync + Send,
+        StateC: StateController<Shared>,
     {
         InstancedRenderer::new(mesh, self.program, Arc::downgrade(&self.uniforms), state_controller)
     }

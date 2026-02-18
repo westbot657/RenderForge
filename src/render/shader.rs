@@ -1,24 +1,29 @@
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 use glow::HasContext;
+use crate::geometry;
 use crate::geometry::{GeoLayout};
 use crate::render::GlData;
 use crate::render::instanced::{InstanceData, InstanceLayout};
 
-#[derive(Copy, Clone, Default)]
-pub struct NullInstanceLayout;
-#[derive(Copy, Clone, Default)]
-pub struct NullInstanceData;
 
-impl InstanceData for NullInstanceData {
+impl InstanceData for () {
     fn write(&self, _: &mut Vec<f32>) {}
 }
-impl InstanceLayout for NullInstanceLayout {
-    type Data = NullInstanceData;
+impl InstanceLayout for () {
+    type Data = ();
     fn span(&self) -> usize { 0 }
-    fn alignments(&self) -> impl Iterator<Item = u32> {
-        [].into_iter()
-    }
+    fn alignments(&self) -> impl Iterator<Item = u32> { [].into_iter() }
+}
+
+impl geometry::Vertex for () {
+    fn write(&self, _: &mut Vec<f32>) {}
+}
+
+impl GeoLayout for () {
+    type Vert = ();
+    fn span(&self) -> usize { 0 }
+    fn alignments(&self) -> impl Iterator<Item=u32> { [].into_iter() }
 }
 
 
@@ -121,7 +126,7 @@ where
 
 }
 
-impl<GLayout> Shader<GLayout, NullInstanceLayout>
+impl<GLayout> Shader<GLayout, ()>
 where
     GLayout: GeoLayout,
 {

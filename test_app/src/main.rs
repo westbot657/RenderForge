@@ -3,7 +3,7 @@ use std::time::Instant;
 use eframe::{CreationContext, Frame};
 use egui::Ui;
 use glam::{Mat4, Vec3};
-use glow::{Context, HasContext};
+use glow::Context;
 use renderforge::builtin;
 use renderforge::builtin::meshes::pos_color::{Vertex as PCVert};
 use renderforge::builtin::components::basic::BackgroundColor;
@@ -39,6 +39,7 @@ struct SharedState {
     shader_lib: ShaderLib,
     last_time: Instant,
     dt: f32,
+    cube_spin_speed: f32,
 }
 impl SharedState {
     fn new(gl: &Context) -> Result<Self, String> {
@@ -48,6 +49,7 @@ impl SharedState {
             shader_lib: ShaderLib::new(gl)?,
             last_time: Instant::now(),
             dt: 0.,
+            cube_spin_speed: 0.5,
         })
     }
 }
@@ -60,6 +62,7 @@ impl TopBar {
         Self {}
     }
     fn show(&mut self, ctx: &egui::Context, ui: &mut Ui) {
+        ui.heading("Test App - Spinning Cube");
         let (rect, res) = ui.allocate_exact_size(
             ui.available_size(),
             egui::Sense::all()
@@ -98,17 +101,33 @@ impl LeftPanel {
 }
 
 struct RightPanel {
-
+    shared: Arc<RwLock<SharedState>>
 }
 impl RightPanel {
-    fn new() -> Self {
-        Self {}
+    fn new(shared: Arc<RwLock<SharedState>>) -> Self {
+        Self { shared }
     }
     fn show(&mut self, ctx: &egui::Context, ui: &mut Ui) {
+
+        let _ = ui.allocate_exact_size(
+            egui::Vec2::new(ui.available_size().x, 20.),
+            egui::Sense::empty()
+        );
+
+        let mut speed = self.shared.read().unwrap().cube_spin_speed;
+
+        ui.add(egui::Slider::new(&mut speed, 0.0..=50.0)
+            .step_by(0.25)
+            .text("Cube Spin Speed"));
+
+        self.shared.write().unwrap().cube_spin_speed = speed;
+
         let (rect, res) = ui.allocate_exact_size(
             ui.available_size(),
             egui::Sense::all()
         );
+
+
     }
 }
 
@@ -124,9 +143,12 @@ where
     Geo: GeoUnit<Vert = PCVert>
 {
     fn render(&mut self, _: &Context, _: &mut GlStateManager, _: &Camera, state: &Arc<RwLock<SharedState>>) {
-        let dt = { state.read().unwrap().dt };
+        let y= {
+            let s = state.read().unwrap();
+            s.dt * s.cube_spin_speed
+        };
 
-        let rotation = Mat4::from_rotation_y(dt * 0.5); // 0.5 radians per second
+        let rotation = Mat4::from_rotation_y(y);
         self.pos *= rotation;
 
         self.drawer.draw(builtin::instanced::pos::Data::new(self.pos)).unwrap()
@@ -278,7 +300,7 @@ impl TestApp {
             top: TopBar::new(),
             bottom: BottomBar::new(),
             left: LeftPanel::new(),
-            right: RightPanel::new(),
+            right: RightPanel::new(Arc::clone(&shared)),
             view3d: View3d::new(gl, Arc::clone(&shared)),
             shared,
         })

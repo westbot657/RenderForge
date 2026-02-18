@@ -21,7 +21,7 @@ pub struct RawLayout {
 }
 
 pub struct RawVertex<'l> {
-    attrs: HashMap<&'l str, &'l dyn render::GlData>,
+    attrs: HashMap<&'l str, &'l dyn render::GlData<DataType = f32>>,
     layout: &'l Layout,
 }
 
@@ -119,7 +119,7 @@ pub enum DynamicGeometryError {
 
 impl<'l> RawVertex<'l> {
 
-    pub fn set_attr(&mut self, name: impl ToString, value: &'l dyn render::GlData) -> Result<(), DynamicGeometryError> {
+    pub fn set_attr(&mut self, name: impl ToString, value: &'l dyn render::GlData<DataType = f32>) -> Result<(), DynamicGeometryError> {
 
         let name = name.to_string();
 
@@ -141,7 +141,7 @@ impl<'l> RawVertex<'l> {
         Ok(())
     }
 
-    pub fn with_attr(mut self, name: impl ToString, value: &'l dyn render::GlData) -> Result<Self, DynamicGeometryError> {
+    pub fn with_attr(mut self, name: impl ToString, value: &'l dyn render::GlData<DataType = f32>) -> Result<Self, DynamicGeometryError> {
         self.set_attr(name, value)?;
         Ok(self)
     }

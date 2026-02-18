@@ -16,7 +16,7 @@ pub struct Layout {
 }
 
 pub struct RawData<'l> {
-    attrs: HashMap<&'l str, &'l dyn GlData>,
+    attrs: HashMap<&'l str, &'l dyn GlData<DataType = f32>>,
     layout: &'l Layout,
 }
 
@@ -62,7 +62,7 @@ pub enum DynamicInstanceError {
 
 impl<'l> RawData<'l> {
     
-    pub fn set_attr(&mut self, name: impl ToString, value: &'l dyn GlData) -> Result<(), DynamicInstanceError> {
+    pub fn set_attr(&mut self, name: impl ToString, value: &'l dyn GlData<DataType = f32>) -> Result<(), DynamicInstanceError> {
         
         let name = name.to_string();
         
@@ -84,7 +84,7 @@ impl<'l> RawData<'l> {
         Ok(())
     }
     
-    pub fn with_attr(mut self, name: impl ToString, value: &'l dyn GlData) -> Result<Self, DynamicInstanceError> {
+    pub fn with_attr(mut self, name: impl ToString, value: &'l dyn GlData<DataType = f32>) -> Result<Self, DynamicInstanceError> {
         self.set_attr(name, value)?;
         Ok(self)
     }

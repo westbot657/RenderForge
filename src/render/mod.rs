@@ -3,7 +3,7 @@ use std::ops::Add;
 use std::sync::{RwLock, Weak};
 use glow::Context;
 use crate::render::camera::Camera;
-use crate::render::shader::Uniforms;
+use crate::render::shader::{UniformUploader, Uniforms};
 use crate::render::state::GlStateManager;
 
 pub mod batched;
@@ -157,87 +157,101 @@ where
 }
 
 
-pub trait GlData: Sync + Send {
+pub trait GlData : Sync + Send {
+    type DataType: UniformUploader;
     fn size(&self) -> usize;
-    fn write(&self, buffer: &mut Vec<f32>);
+    fn write(&self, buffer: &mut Vec<Self::DataType>);
 }
 
 impl GlData for f32 {
+    type DataType = f32;
     fn size(&self) -> usize { 1 }
-    fn write(&self, buffer: &mut Vec<f32>){
+    fn write(&self, buffer: &mut Vec<Self::DataType>){
         buffer.push(*self)
     }
 }
 impl GlData for [f32; 2] {
+    type DataType = f32;
     fn size(&self) -> usize { 2 }
-    fn write(&self, buffer: &mut Vec<f32>) {
+    fn write(&self, buffer: &mut Vec<Self::DataType>) {
         buffer.extend_from_slice(self)
     }
 }
 impl GlData for [f32; 3] {
+    type DataType = f32;
     fn size(&self) -> usize { 3 }
-    fn write(&self, buffer: &mut Vec<f32>) {
+    fn write(&self, buffer: &mut Vec<Self::DataType>) {
         buffer.extend_from_slice(self)
     }
 }
 impl GlData for [f32; 4] {
+    type DataType = f32;
     fn size(&self) -> usize { 4 }
-    fn write(&self, buffer: &mut Vec<f32>) {
+    fn write(&self, buffer: &mut Vec<Self::DataType>) {
         buffer.extend_from_slice(self)
     }
 }
 impl GlData for [f32; 16] {
+    type DataType = f32;
     fn size(&self) -> usize { 16 }
-    fn write(&self, buffer: &mut Vec<f32>) {
+    fn write(&self, buffer: &mut Vec<Self::DataType>) {
         buffer.extend_from_slice(self)
     }
 }
 impl GlData for glam::Vec2 {
+    type DataType = f32;
     fn size(&self) -> usize { 2 }
-    fn write(&self, buffer: &mut Vec<f32>) {
+    fn write(&self, buffer: &mut Vec<Self::DataType>) {
         buffer.extend_from_slice(self.as_ref())
     }
 }
 impl GlData for glam::Vec3 {
+    type DataType = f32;
     fn size(&self) -> usize { 3 }
-    fn write(&self, buffer: &mut Vec<f32>) {
+    fn write(&self, buffer: &mut Vec<Self::DataType>) {
         buffer.extend_from_slice(self.as_ref())
     }
 }
 impl GlData for glam::Vec4 {
+    type DataType = f32;
     fn size(&self) -> usize { 4 }
-    fn write(&self, buffer: &mut Vec<f32>) {
+    fn write(&self, buffer: &mut Vec<Self::DataType>) {
         buffer.extend_from_slice(self.as_ref())
     }
 }
 impl GlData for glam::Quat {
+    type DataType = f32;
     fn size(&self) -> usize { 4 }
-    fn write(&self, buffer: &mut Vec<f32>) {
+    fn write(&self, buffer: &mut Vec<Self::DataType>) {
         buffer.extend_from_slice(self.as_ref())
     }
 }
 impl GlData for glam::Mat4 {
+    type DataType = f32;
     fn size(&self) -> usize { 16 }
-    fn write(&self, buffer: &mut Vec<f32>) {
+    fn write(&self, buffer: &mut Vec<Self::DataType>) {
         buffer.extend_from_slice(self.as_ref())
     }
 }
 
 impl GlData for u32 {
+    type DataType = u32;
     fn size(&self) -> usize { 1 }
-    fn write(&self, buffer: &mut Vec<f32>) {
-        buffer.push(f32::from_bits(*self))
+    fn write(&self, buffer: &mut Vec<Self::DataType>) {
+        buffer.push(*self)
     }
 }
 impl GlData for i32 {
+    type DataType = i32;
     fn size(&self) -> usize { 1 }
-    fn write(&self, buffer: &mut Vec<f32>) {
-        buffer.push(f32::from_bits(*self as u32))
+    fn write(&self, buffer: &mut Vec<Self::DataType>) {
+        buffer.push(*self)
     }
 }
 impl GlData for bool {
+    type DataType = u32;
     fn size(&self) -> usize { 1 }
-    fn write(&self, buffer: &mut Vec<f32>) {
-        buffer.push(f32::from_bits(*self as u32))
+    fn write(&self, buffer: &mut Vec<Self::DataType>) {
+        buffer.push(if *self { 1 } else { 0 })
     }
 }

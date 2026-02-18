@@ -13,6 +13,7 @@ repository = "https://github.com/westbot657/RenderForge"
 readme = "README.md"
 keywords = ["rendering", "opengl"]
 categories = ["rendering"]
+exclude = ["/test_app"]
 
 [dependencies]
 glow = "0.16.0"

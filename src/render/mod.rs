@@ -1,5 +1,6 @@
-use std::cell::RefCell;
-use std::rc;
+use std::marker::PhantomData;
+use std::sync;
+use std::sync::{RwLock, Weak};
 use crate::render::camera::Camera;
 use crate::render::shader::Uniforms;
 use crate::render::state::GlStateManager;
@@ -10,8 +11,9 @@ pub mod instanced;
 pub mod shader;
 pub mod state;
 pub mod camera;
+pub mod scene;
 
-pub trait Renderer: Sized {
+pub trait Renderer<SharedState> : Sync + Send {
     fn setup(&mut self, gl: &glow::Context) -> Result<(), String> {
         let _ = gl;
         Ok(())
@@ -20,32 +22,73 @@ pub trait Renderer: Sized {
         &mut self,
         gl: &glow::Context,
         state: &mut GlStateManager,
-        camera: &Camera
+        camera: &Camera,
+        shared_state: &SharedState,
     );
-    fn destroy(self, gl: &glow::Context) {
+    fn destroy(&mut self, gl: &glow::Context) {
         let _ = gl;
     }
 }
 
-pub trait SceneRenderer {
-    fn render(
+pub trait StateController: Sized + Sync + Send {
+    type SharedState: Sized + Sync + Send;
+    fn set_state(
         &mut self,
         gl: &glow::Context,
         state: &mut GlStateManager,
-        camera: &Camera
-    );
+        uniforms: &sync::Weak<RwLock<Uniforms>>,
+        camera: &Camera,
+        shared_state: &Self::SharedState,
+    ) {
+        let _ = state;
+        let _ = uniforms;
+        let _ = camera;
+        let _ = shared_state;
+    }
 }
 
-pub trait StateController: Sized {
-    fn set_state(
-        &mut self,
-        state: &mut GlStateManager,
-        uniforms: &rc::Weak<RefCell<Uniforms>>,
-        camera: &Camera
-    );
+pub struct EmptyStateController<Shared>(PhantomData<Shared>);
+
+impl<Shared> StateController for EmptyStateController<Shared>
+where
+    Shared: Sized + Sync + Send
+{
+    type SharedState = Shared;
 }
 
-pub trait GlData {
+pub struct CameraUniformsStateController<Shared> {
+    view_uniform: String,
+    proj_uniform: String,
+    phantom_data: PhantomData<Shared>
+}
+impl<Shared> CameraUniformsStateController<Shared>
+where
+    Shared: Sized + Sync + Send
+{
+    pub fn new(view: impl ToString, proj: impl ToString) -> Self {
+        Self {
+            view_uniform: view.to_string(),
+            proj_uniform: proj.to_string(),
+            phantom_data: PhantomData
+        }
+    }
+}
+
+impl<Shared> StateController for CameraUniformsStateController<Shared>
+where
+    Shared: Sized + Sync + Send
+{
+    type SharedState = Shared;
+    fn set_state(&mut self, gl: &glow::Context, state: &mut GlStateManager, uniforms: &Weak<RwLock<Uniforms>>, camera: &Camera, _: &Self::SharedState) {
+        let uniforms = uniforms.upgrade().unwrap();
+        let mut uniforms = uniforms.write().unwrap();
+        
+        uniforms.set(gl, &self.view_uniform, camera.view());
+        uniforms.set(gl, &self.proj_uniform, camera.projection());
+    }
+}
+
+pub trait GlData: Sync + Send {
     fn size(&self) -> usize;
     fn write(&self, buffer: &mut Vec<f32>);
 }

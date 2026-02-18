@@ -22,7 +22,7 @@ impl instanced::InstanceLayout for Layout {
         16
     }
     fn alignments(&self) -> impl Iterator<Item = u32> {
-        [16].into_iter()
+        [4, 4, 4, 4].into_iter()
     }
 }
 

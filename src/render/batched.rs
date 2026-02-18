@@ -1,6 +1,6 @@
 use glam::Mat4;
 use crate::geometry::*;
-use crate::render::buffer::{Buffer, RenderableBuffer};
+use crate::render::buffer::RenderableBuffer;
 
 pub struct BatchedMesh<Geo, Layout>
 where

@@ -1,6 +1,5 @@
-use std::cell::RefCell;
-use std::rc;
-use std::rc::Rc;
+use std::sync;
+use std::sync::{Arc, RwLock};
 use glow::{Context, HasContext};
 use crate::geometry::*;
 use crate::render::shader::{NullInstanceLayout, Shader, Uniforms};
@@ -8,6 +7,7 @@ use crate::render::{Renderer, StateController};
 use crate::render::camera::Camera;
 use crate::render::state::{GlStateManager, StateSnapshot};
 
+#[derive(Default)]
 pub struct Buffer<Geo, Layout>
 where
     Geo: GeoUnit<Vert = Layout::Vert>,
@@ -73,7 +73,7 @@ where
 }
 
 
-pub trait RenderableBuffer : Sized + BufferProvider {
+pub trait RenderableBuffer : Sized + BufferProvider + Sync + Send {
     type Geo: GeoUnit<Vert = <Self::Layout as GeoLayout>::Vert>;
     type Layout: GeoLayout;
     fn layout(&self) -> &Self::Layout;
@@ -109,7 +109,7 @@ where
     buffer: BufferT,
     state: State,
     state_controller: StateC,
-    uniforms_ref: rc::Weak<RefCell<Uniforms>>,
+    uniforms_ref: sync::Weak<RwLock<Uniforms>>,
     program: glow::Program,
 }
 
@@ -123,7 +123,7 @@ where
     pub fn new(
         buffer: BufferT,
         program: glow::Program,
-        uniforms_ref: rc::Weak<RefCell<Uniforms>>,
+        uniforms_ref: sync::Weak<RwLock<Uniforms>>,
         state_controller: StateC,
     ) -> Self {
         Self {
@@ -136,11 +136,11 @@ where
     }
 }
 
-impl<Geo, Layout, StateC, BufferT> Renderer for BufferRenderer<Geo, Layout, StateC, BufferT>
+impl<Geo, Layout, StateC, BufferT, Shared> Renderer<Shared> for BufferRenderer<Geo, Layout, StateC, BufferT>
 where
     Geo: GeoUnit<Vert = Layout::Vert> + Sized,
     Layout: GeoLayout + Sized,
-    StateC: StateController,
+    StateC: StateController<SharedState = Shared>,
     BufferT: RenderableBuffer<Geo = Geo, Layout = Layout>
 {
     fn setup(&mut self, gl: &Context) -> Result<(), String> {
@@ -152,23 +152,21 @@ where
             gl.bind_buffer(glow::ARRAY_BUFFER, Some(vbo));
 
             let span = (self.buffer.layout().span() * size_of::<f32>()) as i32;
-            let mut attrib = 0u32;
             let mut offset = 0i32;
 
-            for alignment in self.buffer.layout().alignments() {
+            for (attrib, alignment) in self.buffer.layout().alignments().enumerate() {
                 gl.vertex_attrib_pointer_f32(
-                    attrib,
+                    attrib as u32,
                     alignment as i32,
                     glow::FLOAT,
                     false,
                     span,
                     offset,
                 );
-                gl.enable_vertex_attrib_array(attrib);
-                gl.vertex_attrib_divisor(attrib, 0);
+                gl.enable_vertex_attrib_array(attrib as u32);
+                gl.vertex_attrib_divisor(attrib as u32, 0);
 
                 offset += (alignment as usize * size_of::<f32>()) as i32;
-                attrib += 1;
             }
 
             gl.bind_buffer(glow::ARRAY_BUFFER, None);
@@ -184,6 +182,7 @@ where
         gl: &Context,
         state: &mut GlStateManager,
         camera: &Camera,
+        shared_state: &Shared
     ) {
         match self.state {
             State::Initialized { vao, vbo } => {
@@ -202,7 +201,7 @@ where
                     );
 
                     let snap = StateSnapshot::new(state);
-                    self.state_controller.set_state(state, &self.uniforms_ref, camera);
+                    self.state_controller.set_state(gl, state, &self.uniforms_ref, camera, shared_state);
 
                     let vertex_count = (geo_buffer.len() / self.buffer.layout().span()) as i32;
                     gl.draw_arrays(
@@ -223,7 +222,7 @@ where
             }
         }
     }
-    fn destroy(self, gl: &Context) {
+    fn destroy(&mut self, gl: &Context) {
         match self.state {
             State::Initialized { vao, vbo } => {
                 unsafe {
@@ -240,6 +239,7 @@ impl<GLayout> Shader<GLayout, NullInstanceLayout>
 where
     GLayout: GeoLayout
 {
+
     pub fn create_buffer_renderer<Geo, BufferT, StateC>(
         &self,
         buffer: BufferT,
@@ -250,7 +250,7 @@ where
         Geo: GeoUnit<Vert = GLayout::Vert>,
         StateC: StateController
     {
-        BufferRenderer::new(buffer, self.program, Rc::downgrade(&self.uniforms), state_controller)
+        BufferRenderer::new(buffer, self.program, Arc::downgrade(&self.uniforms), state_controller)
     }
 }
 

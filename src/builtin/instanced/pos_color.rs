@@ -1,4 +1,3 @@
-use std::borrow::Borrow;
 use glam::{Mat4, Vec4};
 use crate::geometry::{GeoLayout, GeoUnit};
 use crate::render::*;
@@ -25,7 +24,7 @@ impl instanced::InstanceLayout for Layout {
         16 + 4
     }
     fn alignments(&self) -> impl Iterator<Item = u32> {
-        [16, 4].into_iter()
+        [4, 4, 4, 4, 4].into_iter()
     }
 }
 

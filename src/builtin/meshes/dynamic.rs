@@ -42,7 +42,7 @@ impl RawLayout {
                 let Some(idx) = self.attrs
                     .iter()
                     .enumerate()
-                    .find(|(i, a)| a.name == s)
+                    .find(|(_, a)| a.name == s)
                     .map(|(i, _)| i) else {
                     return Err(DynamicGeometryError::InvalidMetaMarker(s))
                 };
@@ -75,6 +75,7 @@ impl RawLayout {
 
 impl Layout {
 
+    #[allow(clippy::new_ret_no_self)]
     pub fn new() -> RawLayout {
         RawLayout {
             attrs: Vec::new(),

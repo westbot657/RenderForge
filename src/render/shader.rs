@@ -1,6 +1,5 @@
-use std::cell::RefCell;
 use std::collections::HashMap;
-use std::rc::Rc;
+use std::sync::{Arc, RwLock};
 use glow::HasContext;
 use crate::geometry::{GeoLayout};
 use crate::render::GlData;
@@ -36,7 +35,7 @@ impl Uniforms {
         }
     }
 
-    fn set_inner(gl: glow::Context, program: glow::Program, loc: glow::UniformLocation, val: &[f32]) {
+    fn set_inner(gl: &glow::Context, program: glow::Program, loc: glow::UniformLocation, val: &[f32]) {
         unsafe {
             match val.len() {
                 1 => gl.program_uniform_1_f32_slice(program, Some(&loc), val),
@@ -50,7 +49,7 @@ impl Uniforms {
     }
 
     /// This will fail silently if the uniform name is not in the program or if the data does not fit in 1, 2, 3, 4, or 16 f32s
-    pub fn set(&mut self, gl: glow::Context, name: &str, value: &dyn GlData) {
+    pub fn set(&mut self, gl: &glow::Context, name: &str, value: &dyn GlData) {
         let mut val = Vec::with_capacity(value.size());
         value.write(&mut val);
         if let Some((loc, current)) = self.values.get_mut(name) {
@@ -58,14 +57,9 @@ impl Uniforms {
                 *current = val;
                 Self::set_inner(gl, self.program, *loc, current.as_slice())
             }
-        } else {
-            match unsafe { gl.get_uniform_location(self.program, name) } {
-                Some(loc) => {
-                    Self::set_inner(gl, self.program, loc, val.as_slice());
-                    self.values.insert(name.to_string(), (loc, val));
-                }
-                None => {}
-            }
+        } else if let Some(loc) = unsafe { gl.get_uniform_location(self.program, name) } {
+            Self::set_inner(gl, self.program, loc, val.as_slice());
+            self.values.insert(name.to_string(), (loc, val));
         }
     }
 
@@ -79,7 +73,7 @@ where
     pub(crate) program: glow::Program,
     pub(crate) layout: GLayout,
     pub(crate) instance_layout: Option<ILayout>,
-    pub(crate) uniforms: Rc<RefCell<Uniforms>>,
+    pub(crate) uniforms: Arc<RwLock<Uniforms>>,
 }
 
 impl<GLayout, ILayout> Shader<GLayout, ILayout>
@@ -121,7 +115,7 @@ where
             program,
             layout,
             instance_layout,
-            uniforms: Rc::new(RefCell::new(Uniforms::new(program))),
+            uniforms: Arc::new(RwLock::new(Uniforms::new(program))),
         })
     }
 

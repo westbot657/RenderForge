@@ -5,6 +5,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+renderforge = { path = "../../RenderForge" }
 eframe = "0.33.3"
 egui = { version = "0.33.3", features = ["mint"] }
 glow = "0.16.0"

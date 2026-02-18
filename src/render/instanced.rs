@@ -1,6 +1,5 @@
-use std::cell::RefCell;
-use std::rc;
-use std::rc::Rc;
+use std::sync;
+use std::sync::{Arc, RwLock};
 use glow::HasContext;
 use crate::geometry::*;
 use crate::render::{Renderer, StateController};
@@ -8,11 +7,11 @@ use crate::render::camera::Camera;
 use crate::render::shader::{Shader, Uniforms};
 use crate::render::state::{GlStateManager, StateSnapshot};
 
-pub trait InstanceData: Sized + Clone {
+pub trait InstanceData: Sized + Clone + Sync + Send {
     fn write(&self, buffer: &mut Vec<f32>);
 }
 
-pub trait InstanceLayout: Sized + Clone {
+pub trait InstanceLayout: Sized + Clone + Sync + Send {
     type Data: InstanceData;
     fn span(&self) -> usize;
     fn alignments(&self) -> impl Iterator<Item = u32>;
@@ -110,9 +109,9 @@ where
     ILayout: InstanceLayout,
     StateC: StateController
 {
-    mesh: Rc<RefCell<InstancedMesh<Geo, GLayout, ILayout>>>,
+    mesh: Arc<RwLock<InstancedMesh<Geo, GLayout, ILayout>>>,
     state: State,
-    uniforms_ref: rc::Weak<RefCell<Uniforms>>,
+    uniforms_ref: sync::Weak<RwLock<Uniforms>>,
     program: glow::Program,
     state_controller: StateC
 }
@@ -123,7 +122,7 @@ where
     GLayout: GeoLayout,
     ILayout: InstanceLayout,
 {
-    mesh: rc::Weak<RefCell<InstancedMesh<Geo, GLayout, ILayout>>>
+    mesh: sync::Weak<RwLock<InstancedMesh<Geo, GLayout, ILayout>>>
 }
 
 
@@ -137,11 +136,11 @@ where
     pub fn new(
         mesh: InstancedMesh<Geo, GLayout, ILayout>,
         program: glow::Program,
-        uniforms_ref: rc::Weak<RefCell<Uniforms>>,
+        uniforms_ref: sync::Weak<RwLock<Uniforms>>,
         state_controller: StateC,
     ) -> Self {
         Self {
-            mesh: Rc::new(RefCell::new(mesh)),
+            mesh: Arc::new(RwLock::new(mesh)),
             state: State::Uninitialized,
             uniforms_ref,
             program,
@@ -151,24 +150,24 @@ where
 
     pub fn create_drawer(&self) -> InstancedDrawer<Geo, GLayout, ILayout> {
         InstancedDrawer {
-            mesh: Rc::downgrade(&self.mesh)
+            mesh: Arc::downgrade(&self.mesh)
         }
     }
 
 }
 
 
-impl<Geo, GLayout, ILayout, StateC> Renderer for InstancedRenderer<Geo, GLayout, ILayout, StateC>
+impl<Geo, GLayout, ILayout, StateC, Shared> Renderer<Shared> for InstancedRenderer<Geo, GLayout, ILayout, StateC>
 where
     Geo: GeoUnit<Vert = GLayout::Vert>,
     GLayout: GeoLayout,
     ILayout: InstanceLayout,
-    StateC: StateController,
+    StateC: StateController<SharedState = Shared>,
 {
     fn setup(&mut self, gl: &glow::Context) -> Result<(), String> {
 
         let (geometry_buffer, primitive_count) = {
-            let b = self.mesh.borrow();
+            let b = self.mesh.read().unwrap();
             let buf = b.get_geo_buffer();
             let count = b.inner.geometry.len();
             (buf, count)
@@ -184,7 +183,7 @@ where
 
         unsafe {
 
-            let mesh = self.mesh.borrow();
+            let mesh = self.mesh.read().unwrap();
 
             let vao = gl.create_vertex_array()?;
             gl.bind_vertex_array(Some(vao));
@@ -254,7 +253,8 @@ where
         &mut self,
         gl: &glow::Context,
         state: &mut GlStateManager,
-        camera: &Camera
+        camera: &Camera,
+        shared_state: &Shared,
     ) {
         match self.state {
             State::Initialized {
@@ -263,7 +263,7 @@ where
             } => {
 
                 let (instance_buffer, instance_count) = {
-                    let mut b = self.mesh.borrow_mut();
+                    let mut b = self.mesh.write().unwrap();
                     let buf = b.get_instance_buffer();
                     let count = b.data.len();
                     b.clear_instance_data();
@@ -283,8 +283,8 @@ where
                     );
 
                     let snap = StateSnapshot::new(state);
-                    self.state_controller.set_state(state, &self.uniforms_ref, camera);
-
+                    self.state_controller.set_state(gl, state, &self.uniforms_ref, camera, shared_state);
+                    
                     gl.draw_arrays_instanced(
                         Geo::MODE,
                         0,
@@ -307,7 +307,7 @@ where
         }
     }
 
-    fn destroy(self, gl: &glow::Context) {
+    fn destroy(&mut self, gl: &glow::Context) {
         match self.state {
             State::Initialized {
                 vao, vbo,
@@ -335,7 +335,7 @@ where
     /// Returns an Err if the Mesh has been dropped
     pub fn draw(&self, data: ILayout::Data) -> Result<(), String> {
         if let Some(mesh) = self.mesh.upgrade() {
-            mesh.borrow_mut().add_data(data);
+            mesh.write().unwrap().add_data(data);
             Ok(())
         } else {
             Err(String::from("InstancedDrawer mesh was dropped"))
@@ -349,6 +349,21 @@ where
     GLayout: GeoLayout,
     ILayout: InstanceLayout,
 {
+
+    pub fn create_geometry<Geo>(&self) -> Geometry<Geo, GLayout>
+    where
+        Geo: GeoUnit<Vert = GLayout::Vert>
+    {
+        Geometry::new_with_layout(self.layout.clone())
+    }
+
+    pub fn create_instanced_mesh<Geo>(&self, geometry: Geometry<Geo, GLayout>) -> InstancedMesh<Geo, GLayout, ILayout>
+    where
+        Geo: GeoUnit<Vert = GLayout::Vert>
+    {
+        InstancedMesh::new_with_layout(geometry, self.instance_layout.clone().unwrap())
+    }
+
     pub fn create_instanced_renderer<Geo, StateC>(
         &self,
         mesh: InstancedMesh<Geo, GLayout, ILayout>,
@@ -358,7 +373,7 @@ where
         Geo: GeoUnit<Vert = GLayout::Vert>,
         StateC: StateController,
     {
-        InstancedRenderer::new(mesh, self.program, Rc::downgrade(&self.uniforms), state_controller)
+        InstancedRenderer::new(mesh, self.program, Arc::downgrade(&self.uniforms), state_controller)
     }
 }
 

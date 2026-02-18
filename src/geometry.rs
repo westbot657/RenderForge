@@ -1,11 +1,11 @@
 
-pub trait GeoLayout: Sized + Clone {
+pub trait GeoLayout: Sized + Clone + Sync + Send {
     type Vert: Vertex;
     fn span(&self) -> usize;
     fn alignments(&self) -> impl Iterator<Item = u32>;
 }
 
-pub trait Vertex: Sized + Clone {
+pub trait Vertex: Sized + Clone + Sync + Send {
     fn write(&self, buffer: &mut Vec<f32>);
     fn transform(&mut self, transform: glam::Mat4, normal_transform: glam::Mat4) {
         let _ = transform;
@@ -14,7 +14,7 @@ pub trait Vertex: Sized + Clone {
 }
 
 
-pub trait GeoUnit: Sized + Clone {
+pub trait GeoUnit: Sized + Clone + Sync + Send {
     const VERTEX_COUNT: usize;
     const MODE: u32;
     const MIN_PRIMITIVE_COUNT: usize;
@@ -67,8 +67,17 @@ pub struct Point<Vert: Vertex> {
     pub(crate) vertex: Vert
 }
 
+impl<Vert: Vertex> Tri<Vert> {
+    pub fn new(a: Vert, b: Vert, c: Vert) -> Self {
+        Self { vertices: [a, b, c] }
+    }
+}
 
 impl<Vert: Vertex> Quad<Vert> {
+    pub fn new(a: Vert, b: Vert, c: Vert, d: Vert) -> Self {
+        Self { vertices: [a, b, c, d] }
+    }
+
     pub fn to_triangles(self) -> [Tri<Vert>; 2] {
         let [a, b, c, d] = self.vertices;
         [
@@ -86,6 +95,41 @@ impl<Vert: Vertex> Quad<Vert> {
     }
 }
 
+impl<Vert: Vertex> Lines<Vert> {
+    pub fn new(a: Vert, b: Vert) -> Self {
+        Self { vertices: [a, b] }
+    }
+}
+
+impl<Vert: Vertex> LineStripSegment<Vert> {
+    pub fn new(vertex: Vert) -> Self {
+        Self { vertex }
+    }
+}
+
+impl<Vert: Vertex> LineLoopSegment<Vert> {
+    pub fn new(vertex: Vert) -> Self {
+        Self { vertex }
+    }
+}
+
+impl<Vert: Vertex> TriangleStripSegment<Vert> {
+    pub fn new(vertex: Vert) -> Self {
+        Self { vertex }
+    }
+}
+
+impl<Vert: Vertex> TriangleFanSegment<Vert> {
+    pub fn new(vertex: Vert) -> Self {
+        Self { vertex }
+    }
+}
+
+impl<Vert: Vertex> Point<Vert> {
+    pub fn new(vertex: Vert) -> Self {
+        Self { vertex }
+    }
+}
 
 
 impl<Vert: Vertex> GeoUnit for Tri<Vert> {
@@ -107,14 +151,14 @@ impl<Vert: Vertex> GeoUnit for Tri<Vert> {
 }
 
 impl<Vert: Vertex> GeoUnit for Quad<Vert> {
-    const VERTEX_COUNT: usize = 4;
-    const MODE: u32 = glow::QUADS;
+    const VERTEX_COUNT: usize = 6;
+    const MODE: u32 = glow::TRIANGLES;
     const MIN_PRIMITIVE_COUNT: usize = 1;
     type Vert = Vert;
 
     fn write(&self, buffer: &mut Vec<f32>) {
-        for v in &self.vertices {
-            v.write(buffer)
+        for i in [0, 1, 2, 0, 2, 3] {
+            self.vertices[i].write(buffer)
         }
     }
     fn transform_vertices(&mut self, transformer: &impl Fn(&mut Self::Vert)) {

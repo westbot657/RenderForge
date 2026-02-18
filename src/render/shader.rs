@@ -24,7 +24,7 @@ impl InstanceLayout for NullInstanceLayout {
 
 pub struct Uniforms {
     values: HashMap<String, (glow::UniformLocation, Vec<f32>)>,
-    program: glow::Program,
+    pub program: glow::Program,
 }
 
 impl Uniforms {
@@ -70,10 +70,10 @@ where
     GLayout: GeoLayout,
     ILayout: InstanceLayout,
 {
-    pub(crate) program: glow::Program,
+    pub program: glow::Program,
     pub(crate) layout: GLayout,
     pub(crate) instance_layout: Option<ILayout>,
-    pub(crate) uniforms: Arc<RwLock<Uniforms>>,
+    pub uniforms: Arc<RwLock<Uniforms>>,
 }
 
 impl<GLayout, ILayout> Shader<GLayout, ILayout>

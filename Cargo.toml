@@ -7,23 +7,17 @@ members = [
 name = "renderforge"
 version = "0.1.0"
 edition = "2024"
+description = "A Rendering framework built on top of glow"
+license = "GPL-3"
+repository = "https://github.com/westbot657/RenderForge"
+readme = "README.md"
+keywords = ["rendering", "opengl"]
+categories = ["rendering"]
 
 [dependencies]
-eframe = "0.33.3"
-egui = { version = "0.33.3", features = ["mint"] }
 glow = "0.16.0"
 glam = { version = "0.32.0" }
 bytemuck = "1.25.0"
-egui_glow = "0.33.3"
-indexmap = "2.12.1"
-anyhow = { version = "1.0.100" }
 thiserror = { version = "2.0.16" }
-rect_packer = { version = "0.2.1" }
-delegate = { version = "0.13.4" }
-image = { version = "0.25.8" }
-uuid = { version = "1.19.0", features = ["v4"] }
 
-[features]
-texture-debug = []
-thread-safe = []
 

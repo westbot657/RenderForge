@@ -1,5 +1,4 @@
 use std::marker::PhantomData;
-use std::sync;
 use std::sync::{RwLock, Weak};
 use crate::render::camera::Camera;
 use crate::render::shader::Uniforms;
@@ -36,10 +35,11 @@ pub trait StateController: Sized + Sync + Send {
         &mut self,
         gl: &glow::Context,
         state: &mut GlStateManager,
-        uniforms: &sync::Weak<RwLock<Uniforms>>,
+        uniforms: &Weak<RwLock<Uniforms>>,
         camera: &Camera,
         shared_state: &Self::SharedState,
     ) {
+        let _ = gl;
         let _ = state;
         let _ = uniforms;
         let _ = camera;
@@ -79,10 +79,10 @@ where
     Shared: Sized + Sync + Send
 {
     type SharedState = Shared;
-    fn set_state(&mut self, gl: &glow::Context, state: &mut GlStateManager, uniforms: &Weak<RwLock<Uniforms>>, camera: &Camera, _: &Self::SharedState) {
+    fn set_state(&mut self, gl: &glow::Context, _: &mut GlStateManager, uniforms: &Weak<RwLock<Uniforms>>, camera: &Camera, _: &Self::SharedState) {
         let uniforms = uniforms.upgrade().unwrap();
         let mut uniforms = uniforms.write().unwrap();
-        
+
         uniforms.set(gl, &self.view_uniform, camera.view());
         uniforms.set(gl, &self.proj_uniform, camera.projection());
     }

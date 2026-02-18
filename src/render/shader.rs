@@ -6,9 +6,9 @@ use crate::render::GlData;
 use crate::render::instanced::{InstanceData, InstanceLayout};
 
 #[derive(Copy, Clone, Default)]
-pub(crate) struct NullInstanceLayout;
+pub struct NullInstanceLayout;
 #[derive(Copy, Clone, Default)]
-pub(crate) struct NullInstanceData;
+pub struct NullInstanceData;
 
 impl InstanceData for NullInstanceData {
     fn write(&self, _: &mut Vec<f32>) {}

@@ -1,7 +1,6 @@
 
 
 use std::collections::HashMap;
-use glow::HasContext;
 use rect_packer::Packer;
 
 pub struct RawAtlas {

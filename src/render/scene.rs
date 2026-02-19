@@ -1,47 +1,33 @@
-use glow::Context;
+use wgpu::{CommandBuffer, CommandEncoder, Device, Queue, RenderPass};
 use crate::render::camera::Camera;
-use crate::render::Renderer;
-use crate::render::state::GlStateManager;
+use crate::render::Renderable;
 
-#[derive(Default)]
-pub struct Scene<Shared> {
-    components: Vec<Box<dyn Renderer<Shared>>>,
-    initialized: bool,
+pub struct Scene<Shared: Sync + Send> {
+    components: Vec<Box<dyn Renderable<Shared>>>
 }
 
-impl<Shared> Scene<Shared> {
+impl<Shared: Sync + Send> Scene<Shared> {
     pub fn new() -> Self {
         Self::with_components(Vec::new())
     }
-    pub fn with_components(components: Vec<Box<dyn Renderer<Shared>>>) -> Self {
-        Self {
-            components,
-            initialized: false,
-        }
+    
+    pub fn with_components(components: Vec<Box<dyn Renderable<Shared>>>) -> Self {
+        Self { components }
     }
 }
 
-impl<Shared> Renderer<Shared> for Scene<Shared> {
-    fn setup(&mut self, gl: &Context) -> Result<(), String> {
-        if self.initialized { return Ok(()); }
-        self.initialized = true;
+impl<Shared: Sync + Send> Renderable<Shared> for Scene<Shared> {
+    fn prepare(&mut self, device: &Device, queue: &Queue, encoder: &mut CommandEncoder, camera: &Camera, shared: &Shared) -> Vec<CommandBuffer> {
+        let mut v = Vec::new();
         for comp in &mut self.components {
-            comp.setup(gl)?
+            v.append(&mut comp.prepare(device, queue, encoder, camera, shared))
         }
-        Ok(())
+        v
     }
-    fn render(&mut self, gl: &Context, state: &mut GlStateManager, camera: &Camera, shared_state: &Shared) {
-        if !self.initialized {
-            return;
-        }
+
+    fn render<'r>(&mut self, pass: &mut RenderPass<'r>, camera: &Camera, shared: &Shared) {
         for comp in &mut self.components {
-            comp.render(gl, state, camera, shared_state)
-        }
-    }
-    fn destroy(&mut self, gl: &Context) {
-        if !self.initialized { return }
-        for comp in &mut self.components {
-            comp.destroy(gl)
+            comp.render(pass, camera, shared)
         }
     }
 }

@@ -15,12 +15,16 @@ keywords = ["rendering", "opengl"]
 categories = ["rendering"]
 exclude = ["/test_app"]
 
+[features]
+default = ["opengl"]
+opengl = ["wgpu/gles"]
+vulkan = ["wgpu/vulkan"]
+
 [dependencies]
-glow = "0.16.0"
+wgpu = { version = "27.0.1", features = ["std", "glsl", "vulkan", "spirv", "angle", "gles", "wgsl", "vulkan-portability"] }
 glam = { version = "0.32.0" }
-bytemuck = "1.25.0"
+shaderc = "0.10.1"
+pollster = "0.4.0"
 thiserror = { version = "2.0.16" }
-image = "0.25.9"
-rect_packer = "0.2.1"
 
 

@@ -7,16 +7,9 @@ publish = false
 
 [dependencies]
 renderforge = { path = "../../RenderForge" }
-eframe = "0.33.3"
+eframe = { version = "0.33.3", features = ["wgpu", "glow"] }
 egui = { version = "0.33.3", features = ["mint"] }
-glow = "0.16.0"
-glam = { version = "0.32.0" }
-egui_glow = "0.33.3"
+#wgpu = { version = "27.0.1", features = ["std", "glsl", "vulkan", "gles", "angle"] }
+egui-wgpu = "0.33.3"
+env_logger = "0.11.9"
 
-indexmap = "2.12.1"
-anyhow = { version = "1.0.100" }
-thiserror = { version = "2.0.16" }
-rect_packer = { version = "0.2.1" }
-
-image = { version = "0.25.8" }
-uuid = { version = "1.19.0", features = ["v4"] }

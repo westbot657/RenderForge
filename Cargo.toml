@@ -11,7 +11,7 @@ description = "A Rendering framework built on top of glow"
 license = "GPL-3.0-only"
 repository = "https://github.com/westbot657/RenderForge"
 readme = "README.md"
-keywords = ["rendering", "opengl"]
+keywords = ["rendering", "wgpu"]
 categories = ["rendering"]
 exclude = ["/test_app"]
 
@@ -22,9 +22,10 @@ vulkan = ["wgpu/vulkan"]
 
 [dependencies]
 wgpu = { version = "27.0.1", features = ["std", "glsl", "vulkan", "spirv", "angle", "gles", "wgsl", "vulkan-portability"] }
-glam = { version = "0.32.0" }
+glam = { version = "0.32.0", features = ["bytemuck"] }
 shaderc = "0.10.1"
 pollster = "0.4.0"
 thiserror = { version = "2.0.16" }
+bytemuck = { version = "1.25.0", features = ["derive"] }
 
 

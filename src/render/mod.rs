@@ -1,5 +1,5 @@
 use std::marker::PhantomData;
-use wgpu::{CommandBuffer, CommandEncoder, Device, Queue, RenderPass};
+use wgpu::{CommandBuffer, CommandEncoder, Device, Queue, RenderPass, RenderPipeline};
 use crate::render::camera::Camera;
 
 pub mod camera;
@@ -8,13 +8,18 @@ pub mod shader;
 pub mod state;
 
 pub trait Renderable<Shared: Sync + Send> : Sync + Send {
-    fn prepare(&mut self, device: &Device, queue: &Queue, encoder: &mut CommandEncoder, camera: &Camera, shared: &Shared) -> Vec<CommandBuffer>;
-    fn render<'r>(&mut self, pass: &mut RenderPass<'r>, camera: &Camera, shared: &Shared);
+    fn prepare(&mut self, device: &Device, queue: &Queue, encoder: &mut CommandEncoder, camera: &Camera, shared: &Shared) -> Vec<CommandBuffer> {
+        let _ = (device, queue, encoder, camera, shared);
+        Vec::new()
+    }
+    fn render<'r>(&mut self, pass: &mut RenderPass<'r>, camera: &Camera, shared: &Shared) {
+        let _ = (pass, camera, shared);
+    }
 }
 
 pub trait PipelineSelector<Shared: Sync + Send> : Sized + Sync + Send {
-    fn create(pipelines: Vec<wgpu::RenderPipeline>, shared: &Shared) -> Self;
-    fn select<'r>(&mut self, shared: &Shared) -> &'r wgpu::RenderPipeline;
+    fn create(pipelines: Vec<RenderPipeline>, shared: &Shared) -> Result<Self, String>;
+    fn select(&mut self, shared: &Shared) -> &RenderPipeline;
 }
 
 pub struct Renderer<Selector, Render, Shared>
@@ -50,6 +55,34 @@ where
     Render: Renderable<Shared>,
     Shared: Sync + Send
 {
-
+    pub fn new(selector: Sel, inner: Render) -> Self {
+        Self {
+            selector,
+            inner,
+            phantom: PhantomData,
+        }
+    }
 }
+
+pub struct DefaultPipelineSelector {
+    pipeline: RenderPipeline
+}
+
+impl<Shared> PipelineSelector<Shared> for DefaultPipelineSelector
+where
+    Shared: Send + Sync
+{
+    fn create(pipelines: Vec<RenderPipeline>, shared: &Shared) -> Result<Self, String> {
+        let pipeline = pipelines
+            .into_iter()
+            .next()
+            .ok_or_else(|| String::from("No pipeline available"))?;
+        Ok(Self { pipeline })
+    }
+    fn select(&mut self, shared: &Shared) -> &RenderPipeline {
+        &self.pipeline
+    }
+}
+
+
 

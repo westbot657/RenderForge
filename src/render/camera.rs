@@ -1,9 +1,11 @@
+use bytemuck::Zeroable;
 use glam::Mat4;
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, bytemuck::Pod, Zeroable)]
+#[repr(C)]
 pub struct Camera {
-    view: Mat4,
-    proj: Mat4,
+    pub view: Mat4,
+    pub proj: Mat4,
 }
 
 impl Camera {

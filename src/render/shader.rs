@@ -1,10 +1,10 @@
 use std::sync::Arc;
 use shaderc::{ShaderKind};
-use wgpu::{Device, RenderPipeline, RenderPipelineDescriptor, ShaderModule};
+use wgpu::{ColorTargetState, Device, RenderPipeline, RenderPipelineDescriptor, ShaderModule, StencilState};
 use crate::geometry::Geometry;
 use crate::geometry::layout::{GeometryLayout, InstanceLayout, UniformEntry, UniformKind, UniformsLayout};
 use crate::geometry::primitive::Primitive;
-use crate::render::PipelineSelector;
+use crate::render::{PipelineSelector, Renderable, Renderer};
 
 pub enum ShaderSet {
     GlslRender {
@@ -47,75 +47,15 @@ impl From<wgpu::Error> for ShaderError {
     }
 }
 
-#[derive(Clone, Copy, Hash, PartialEq, Eq)]
-pub enum DepthMode {
-    WriteAndTest,
-    TestOnly,
-    Off,
-}
-
-#[derive(Clone, Copy, Hash, PartialEq, Eq)]
-pub enum CullMode {
-    Back,
-    Front,
-    None,
-}
-
-#[derive(Clone, Copy, Hash, PartialEq, Eq)]
-pub enum BlendMode {
-    Replace,
-    Alpha,
-    Additive,
-}
-
-impl From<DepthMode> for Option<wgpu::DepthStencilState> {
-    fn from(d: DepthMode) -> Self {
-        match d {
-            DepthMode::Off => None,
-            DepthMode::WriteAndTest => Some(wgpu::DepthStencilState {
-                format: wgpu::TextureFormat::Depth32Float,
-                depth_write_enabled: true,
-                depth_compare: wgpu::CompareFunction::Less,
-                stencil: Default::default(),
-                bias: Default::default(),
-            }),
-            DepthMode::TestOnly => Some(wgpu::DepthStencilState {
-                format: wgpu::TextureFormat::Depth32Float,
-                depth_write_enabled: false,
-                depth_compare: wgpu::CompareFunction::Less,
-                stencil: Default::default(),
-                bias: Default::default(),
-            }),
-        }
-    }
-}
-
-impl From<CullMode> for Option<wgpu::Face> {
-    fn from(c: CullMode) -> Self {
-        match c {
-            CullMode::Back => Some(wgpu::Face::Back),
-            CullMode::Front => Some(wgpu::Face::Front),
-            CullMode::None => None,
-        }
-    }
-}
-
-impl From<BlendMode> for wgpu::BlendState {
-    fn from(b: BlendMode) -> Self {
-        match b {
-            BlendMode::Replace => wgpu::BlendState::REPLACE,
-            BlendMode::Alpha => wgpu::BlendState::ALPHA_BLENDING,
-            BlendMode::Additive => wgpu::BlendState::PREMULTIPLIED_ALPHA_BLENDING,
-        }
-    }
-}
-
-#[derive(Copy, Clone, Hash, PartialEq, Eq)]
+#[derive(Clone, Hash, PartialEq, Eq)]
 pub struct PipelineConfig {
-    pub depth: DepthMode,
-    pub cull: CullMode,
-    pub blend: BlendMode,
-    pub target_format: wgpu::TextureFormat,
+    pub depth: Option<wgpu::DepthStencilState>,
+    pub cull: Option<wgpu::Face>,
+    pub targets: Vec<Option<ColorTargetState>>
+}
+
+pub fn create_gl_compiler() -> Result<shaderc::Compiler, shaderc::Error> {
+    shaderc::Compiler::new()
 }
 
 impl<Geo, Inst, Unis> Shader<Geo, Inst, Unis>
@@ -225,22 +165,27 @@ where
             }).collect()
         };
 
-        let geo_stride: u64 = self.geometry_layout.attributes()
-            .map(|(_, fmt)| fmt.size())
-            .sum();
+        let geo_stride: u64 = self.geometry_layout.span();
+
+        let inst_location_base = geo_attributes.iter()
+            .map(|a| a.shader_location + 1)
+            .max()
+            .unwrap_or(0);
 
         let inst_attributes: Vec<wgpu::VertexAttribute> = {
             let mut offset = 0u64;
             self.instance_layout.attributes().map(|(location, format)| {
-                let attr = wgpu::VertexAttribute { shader_location: location, offset, format };
+                let attr = wgpu::VertexAttribute {
+                    shader_location: inst_location_base + location,
+                    offset,
+                    format,
+                };
                 offset += format.size();
                 attr
             }).collect()
         };
 
-        let inst_stride: u64 = self.instance_layout.attributes()
-            .map(|(_, fmt)| fmt.size())
-            .sum();
+        let inst_stride: u64 = self.instance_layout.span();
 
         let geo_buffer_layout = wgpu::VertexBufferLayout {
             array_stride: geo_stride,
@@ -275,6 +220,8 @@ where
 
         device.push_error_scope(wgpu::ErrorFilter::Validation);
 
+        let targets = config.targets.as_slice();
+
         let pipeline = device.create_render_pipeline(&RenderPipelineDescriptor {
             label: Some("pipeline"),
             layout: Some(&layout),
@@ -289,17 +236,13 @@ where
             fragment: Some(wgpu::FragmentState {
                 module: fs_module,
                 entry_point: Some(fs_entry),
-                targets: &[Some(wgpu::ColorTargetState {
-                    format: config.target_format,
-                    blend: Some(config.blend.into()),
-                    write_mask: wgpu::ColorWrites::ALL,
-                })],
+                targets: targets,
                 compilation_options: Default::default(),
             }),
 
             primitive: wgpu::PrimitiveState {
                 topology: Prim::TOPOLOGY.into(),
-                cull_mode: config.cull.into(),
+                cull_mode: config.cull,
                 front_face: wgpu::FrontFace::Ccw,
                 polygon_mode: wgpu::PolygonMode::Fill,
                 strip_index_format: None,
@@ -307,8 +250,12 @@ where
                 conservative: false,
             },
 
-            depth_stencil: config.depth.into(),
-            multisample: wgpu::MultisampleState::default(),
+            depth_stencil: config.depth.clone(),
+            multisample: wgpu::MultisampleState {
+                count: 4,
+                mask: !0,
+                alpha_to_coverage_enabled: false,
+            },
             multiview: None,
             cache: None,
         });
@@ -326,13 +273,39 @@ where
         configs.iter().map(|config| self.create_pipeline::<Prim>(device, config)).collect::<Result<Vec<_>, _>>()
     }
 
-    pub fn setup_selector<Sel, Prim, Shared>(&self, device: &Device, configs: &[PipelineConfig], shared: &Shared) -> Result<Sel, wgpu::Error>
+    pub fn setup_selector<Sel, Prim, Shared>(&self, device: &Device, configs: &[PipelineConfig], shared: &Shared) -> Result<Sel, String>
     where
         Sel: PipelineSelector<Shared>,
         Prim: Primitive<Vert = Geo::Vert>,
         Shared: Sync + Send
     {
-        Ok(Sel::create(self.setup_pipelines::<Prim>(device, configs)?, shared))
+        Ok(Sel::create(
+            self.setup_pipelines::<Prim>(device, configs).map_err(|e| format!("{e}"))?,
+            shared
+        )?)
+    }
+
+    pub fn create_renderer<Render, Sel, Prim, Shared>(
+        &self,
+        device: &Device,
+        sub_renderer: Render,
+        shared: &Shared,
+        pipeline_configs: &[PipelineConfig],
+    ) -> Result<Renderer<Sel, Render, Shared>, String>
+    where
+        Render: Renderable<Shared>,
+        Sel: PipelineSelector<Shared>,
+        Shared: Send + Sync,
+        Prim: Primitive<Vert = Geo::Vert>
+    {
+        Ok(Renderer::new(
+            self.setup_selector::<Sel, Prim, Shared>(
+                device,
+                pipeline_configs,
+                shared
+            )?,
+            sub_renderer
+        ))
     }
 
 }

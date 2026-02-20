@@ -1,10 +1,11 @@
 use wgpu::PrimitiveTopology;
+use crate::geometry;
 use crate::geometry::vertex::Vertex;
 
 pub trait Primitive: Sized + Clone + Send + Sync {
     type Vert: Vertex;
     const TOPOLOGY: PrimitiveTopology;
-    const VERTEX_COUNT: u64;
+    const VERTEX_COUNT: u32;
     const MIN_PRIMITIVE_COUNT: usize;
 
     fn mutate_vertices(&mut self, modifier: &impl Fn(&mut Self::Vert));
@@ -13,28 +14,28 @@ pub trait Primitive: Sized + Clone + Send + Sync {
 
 
 #[derive(Clone)]
-pub struct Quad<Vert: Vertex>([Vert; 4]);
+pub struct Quad<Vert: Vertex>(pub [Vert; 4]);
 
 #[derive(Clone)]
-pub struct Tri<Vert: Vertex>([Vert; 3]);
+pub struct Tri<Vert: Vertex>(pub [Vert; 3]);
 
 #[derive(Clone)]
-pub struct Line<Vert: Vertex>([Vert; 2]);
+pub struct Line<Vert: Vertex>(pub [Vert; 2]);
 
 #[derive(Clone)]
-pub struct LineStripSegment<Vert: Vertex>(Vert);
+pub struct LineStripSegment<Vert: Vertex>(pub Vert);
 
 #[derive(Clone)]
-pub struct TriangleStripSegment<Vert: Vertex>(Vert);
+pub struct TriangleStripSegment<Vert: Vertex>(pub Vert);
 
 #[derive(Clone)]
-pub struct Point<Vert: Vertex>(Vert);
+pub struct Point<Vert: Vertex>(pub Vert);
 
 
 impl<Vert: Vertex> Primitive for Quad<Vert> {
     type Vert = Vert;
     const TOPOLOGY: PrimitiveTopology = PrimitiveTopology::TriangleList;
-    const VERTEX_COUNT: u64 = 6;
+    const VERTEX_COUNT: u32 = 6;
     const MIN_PRIMITIVE_COUNT: usize = 1;
 
     fn mutate_vertices(&mut self, modifier: &impl Fn(&mut Self::Vert)) {
@@ -48,7 +49,7 @@ impl<Vert: Vertex> Primitive for Quad<Vert> {
 impl<Vert: Vertex> Primitive for Tri<Vert> {
     type Vert = Vert;
     const TOPOLOGY: PrimitiveTopology = PrimitiveTopology::TriangleList;
-    const VERTEX_COUNT: u64 = 3;
+    const VERTEX_COUNT: u32 = 3;
     const MIN_PRIMITIVE_COUNT: usize = 1;
 
     fn mutate_vertices(&mut self, modifier: &impl Fn(&mut Self::Vert)) {
@@ -62,7 +63,7 @@ impl<Vert: Vertex> Primitive for Tri<Vert> {
 impl<Vert: Vertex> Primitive for Line<Vert> {
     type Vert = Vert;
     const TOPOLOGY: PrimitiveTopology = PrimitiveTopology::LineList;
-    const VERTEX_COUNT: u64 = 2;
+    const VERTEX_COUNT: u32 = 2;
     const MIN_PRIMITIVE_COUNT: usize = 1;
 
     fn mutate_vertices(&mut self, modifier: &impl Fn(&mut Self::Vert)) {
@@ -76,7 +77,7 @@ impl<Vert: Vertex> Primitive for Line<Vert> {
 impl<Vert: Vertex> Primitive for LineStripSegment<Vert> {
     type Vert = Vert;
     const TOPOLOGY: PrimitiveTopology = PrimitiveTopology::LineStrip;
-    const VERTEX_COUNT: u64 = 1;
+    const VERTEX_COUNT: u32 = 1;
     const MIN_PRIMITIVE_COUNT: usize = 2;
 
     fn mutate_vertices(&mut self, modifier: &impl Fn(&mut Self::Vert)) {
@@ -90,7 +91,7 @@ impl<Vert: Vertex> Primitive for LineStripSegment<Vert> {
 impl<Vert: Vertex> Primitive for TriangleStripSegment<Vert> {
     type Vert = Vert;
     const TOPOLOGY: PrimitiveTopology = PrimitiveTopology::TriangleStrip;
-    const VERTEX_COUNT: u64 = 1;
+    const VERTEX_COUNT: u32 = 1;
     const MIN_PRIMITIVE_COUNT: usize = 3;
 
     fn mutate_vertices(&mut self, modifier: &impl Fn(&mut Self::Vert)) {
@@ -104,7 +105,7 @@ impl<Vert: Vertex> Primitive for TriangleStripSegment<Vert> {
 impl<Vert: Vertex> Primitive for Point<Vert> {
     type Vert = Vert;
     const TOPOLOGY: PrimitiveTopology = PrimitiveTopology::PointList;
-    const VERTEX_COUNT: u64 = 1;
+    const VERTEX_COUNT: u32 = 1;
     const MIN_PRIMITIVE_COUNT: usize = 1;
 
     fn mutate_vertices(&mut self, modifier: &impl Fn(&mut Self::Vert)) {
@@ -115,4 +116,53 @@ impl<Vert: Vertex> Primitive for Point<Vert> {
     }
 }
 
+#[macro_export]
+macro_rules! quad {
+    (
+        $vert:path:
+        $( $a:expr ),*;
+        $( $b:expr ),*;
+        $( $c:expr ),*;
+        $( $d:expr ),* $(;)?
+    ) => {
+        Quad([
+            $vert( $( $a ),* ),
+            $vert( $( $b ),* ),
+            $vert( $( $c ),* ),
+            $vert( $( $d ),* ),
+        ])
+    };
+}
+
+#[macro_export]
+macro_rules! tri {
+    (
+        $vert:path:
+        $( $a:expr ),*;
+        $( $b:expr ),*;
+        $( $c:expr ),*$(;)?
+    ) => {
+        Tri([
+            $vert( $( $a ),* ),
+            $vert( $( $b ),* ),
+            $vert( $( $c ),* ),
+        ])
+    };
+}
+#[macro_export]
+macro_rules! line {
+    (
+        $vert:path:
+        $( $a:expr ),*;
+        $( $b:expr ),*$(;)?
+    ) => {
+        Line([
+            $vert( $( $a ),* ),
+            $vert( $( $b ),* ),
+        ])
+    };
+}
+
+
+pub use {quad, tri, line};
 

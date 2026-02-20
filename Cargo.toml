@@ -17,11 +17,12 @@ exclude = ["/test_app"]
 
 [features]
 default = ["opengl"]
-opengl = ["wgpu/gles"]
-vulkan = ["wgpu/vulkan"]
+opengl = ["wgpu/gles", "wgpu/glsl"]
+vulkan = ["wgpu/vulkan", "wgpu/vulkan-portability"]
+debug = []
 
 [dependencies]
-wgpu = { version = "27.0.1", features = ["std", "glsl", "vulkan", "spirv", "angle", "gles", "wgsl", "vulkan-portability"] }
+wgpu = { version = "27.0.1", features = ["std", "spirv", "angle", "wgsl"] }
 glam = { version = "0.32.0", features = ["bytemuck"] }
 shaderc = "0.10.1"
 pollster = "0.4.0"

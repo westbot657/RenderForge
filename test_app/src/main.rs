@@ -1,8 +1,8 @@
 // src/main.rs
 
-use egui::Frame;
+use egui::{Frame, Sense};
 use glam::{Mat4, Vec3, Vec4};
-use wgpu::{ColorTargetState, CompareFunction, DepthStencilState, Face, FrontFace, TextureFormat};
+use wgpu::{Backends, ColorTargetState, CompareFunction, DepthStencilState, Face, FrontFace, TextureFormat};
 use winit::{
     event::{DeviceEvent, ElementState, KeyEvent, MouseButton, WindowEvent},
     keyboard::{KeyCode, PhysicalKey},
@@ -80,6 +80,10 @@ impl CubeGame {
 }
 
 impl App for CubeGame {
+    fn backends() -> Backends {
+        Backends::VULKAN | Backends::GL
+    }
+
     fn new(core: &mut Core) -> Self {
         let fmt = core.surface_format();
 
@@ -266,7 +270,11 @@ impl App for CubeGame {
         egui::CentralPanel::default()
             .frame(Frame::NONE)
             .show(ctx, |ui| {
-                core.render_to_rect(ui, &mut self.viewport, &mut self.scene, &());
+                let (rect, _) = ui.allocate_exact_size(
+                    ui.available_size(),
+                    Sense::empty()
+                );
+                core.render_to_rect(ui, rect, &mut self.viewport, &mut self.scene, &());
             });
 
         egui::Window::new("Controls").show(ctx, |ui| {
@@ -278,7 +286,11 @@ impl App for CubeGame {
             .default_pos((300., 50.))
             .default_size((500., 500.))
             .show(ctx, |ui| {
-                core.render_to_rect(ui, &mut self.viewport, &mut self.scene, &());
+                let (rect, _) = ui.allocate_exact_size(
+                    ui.available_size(),
+                    Sense::empty()
+                );
+                core.render_to_rect(ui, rect, &mut self.viewport, &mut self.scene, &());
             });
     }
 }

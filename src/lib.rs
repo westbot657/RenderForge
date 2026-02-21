@@ -152,15 +152,16 @@ impl Core {
     pub fn render_to_rect<Shared: Send + Sync>(
         &mut self,
         ui: &mut egui::Ui,
+        rect: egui::Rect,
         viewport: &mut Viewport,
         scene: &mut dyn Renderable<Shared>,
         shared: &Shared,
     ) {
-        let rect = ui.available_rect_before_wrap();
+        // let rect = ui.available_rect_before_wrap();
         let ppp = ui.ctx().pixels_per_point();
         let w = (rect.width() * ppp) as u32;
         let h = (rect.height() * ppp) as u32;
-        
+
         if w == 0 || h == 0 { return }
 
         viewport.resize_if_needed(&self.device, &mut self.egui_renderer, w, h, self.surface_format);
@@ -191,10 +192,10 @@ impl Core {
         }
         self.queue.submit([encoder.finish()]);
 
-        ui.image(egui::load::SizedTexture::new(
+        ui.put(rect, egui::Image::new(egui::load::SizedTexture::new(
             viewport.egui_id,
             egui::vec2(rect.width(), rect.height()),
-        ));
+        )));
     }
 
     pub fn handle_window_event(&mut self, event: &WindowEvent) -> bool {

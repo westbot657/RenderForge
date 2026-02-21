@@ -42,31 +42,32 @@ use glam::Mat4;
 
 #[cfg(feature = "egui")]
 pub struct Viewport {
-    texture:    wgpu::Texture,
-    view:       wgpu::TextureView,
-    depth_tex:  wgpu::Texture,
+    texture: wgpu::Texture,
+    view: wgpu::TextureView,
+    depth_tex: wgpu::Texture,
     depth_view: wgpu::TextureView,
-    size:       (u32, u32),
-    egui_id:    egui::TextureId,
+    size: (u32, u32),
+    egui_id: egui::TextureId,
+    clear_color: wgpu::Color,
 }
 
 #[cfg(feature = "egui")]
 impl Viewport {
     pub fn new(
-        device:        &wgpu::Device,
+        device: &Device,
         egui_renderer: &mut egui_wgpu::Renderer,
-        fmt:           wgpu::TextureFormat,
+        fmt: wgpu::TextureFormat,
+        clear_color: wgpu::Color,
     ) -> Self {
         let texture = device.create_texture(&wgpu::TextureDescriptor {
-            label:           Some("viewport"),
-            size:            wgpu::Extent3d { width: 1, height: 1, depth_or_array_layers: 1 },
+            label: Some("viewport"),
+            size: wgpu::Extent3d { width: 1, height: 1, depth_or_array_layers: 1 },
             mip_level_count: 1,
-            sample_count:    1,
-            dimension:       wgpu::TextureDimension::D2,
-            format:          fmt,
-            usage:           wgpu::TextureUsages::RENDER_ATTACHMENT
-                | wgpu::TextureUsages::TEXTURE_BINDING,
-            view_formats:    &[],
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: fmt,
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING,
+            view_formats: &[],
         });
         let view = texture.create_view(&Default::default());
         let (depth_tex, depth_view) = create_depth(device, 1, 1);
@@ -77,7 +78,7 @@ impl Viewport {
             wgpu::FilterMode::Linear,
         );
 
-        Self { texture, view, depth_tex, depth_view, size: (0, 0), egui_id }
+        Self { texture, view, depth_tex, depth_view, size: (0, 0), egui_id, clear_color }
     }
 
     fn resize_if_needed(
@@ -89,15 +90,14 @@ impl Viewport {
     ) {
         if self.size == (w, h) { return; }
         self.texture = device.create_texture(&wgpu::TextureDescriptor {
-            label:           Some("viewport"),
-            size:            wgpu::Extent3d { width: w, height: h, depth_or_array_layers: 1 },
+            label: Some("viewport"),
+            size: wgpu::Extent3d { width: w, height: h, depth_or_array_layers: 1 },
             mip_level_count: 1,
-            sample_count:    1,
-            dimension:       wgpu::TextureDimension::D2,
-            format:          fmt,
-            usage:           wgpu::TextureUsages::RENDER_ATTACHMENT
-                | wgpu::TextureUsages::TEXTURE_BINDING,
-            view_formats:    &[],
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: fmt,
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING,
+            view_formats: &[],
         });
         self.view = self.texture.create_view(&Default::default());
         let (dt, dv) = create_depth(device, w, h);
@@ -114,7 +114,7 @@ impl Viewport {
 }
 
 #[cfg(feature = "egui")]
-pub struct CoreApp {
+pub struct Core {
     window: Arc<Window>,
     surface: Option<wgpu::Surface<'static>>,
     surface_config: wgpu::SurfaceConfiguration,
@@ -131,7 +131,7 @@ pub struct CoreApp {
 }
 
 #[cfg(feature = "egui")]
-impl CoreApp {
+impl Core {
     pub fn surface_format(&self) -> wgpu::TextureFormat { self.surface_format }
     pub fn device(&self) -> &Arc<Device> { &self.device }
     pub fn queue(&self) -> &Arc<Queue> { &self.queue }
@@ -142,24 +142,24 @@ impl CoreApp {
 
     pub fn window(&self) -> &Arc<Window> { &self.window }
     pub fn surface_size(&self) -> (u32, u32) { (self.surface_config.width, self.surface_config.height) }
-    pub fn set_camera(&mut self, camera: Camera) { self.camera = camera }
     pub fn camera(&self) -> &Camera { &self.camera }
+    pub fn camera_mut(&mut self) -> &mut Camera { &mut self.camera }
 
-    pub fn create_viewport(&mut self) -> Viewport {
-        Viewport::new(&self.device, &mut self.egui_renderer, self.surface_format)
+    pub fn create_viewport(&mut self, clear_color: wgpu::Color) -> Viewport {
+        Viewport::new(&self.device, &mut self.egui_renderer, self.surface_format, clear_color)
     }
 
     pub fn render_to_rect<Shared: Send + Sync>(
         &mut self,
-        ui:       &mut egui::Ui,
+        ui: &mut egui::Ui,
         viewport: &mut Viewport,
-        scene:    &mut dyn Renderable<Shared>,
-        shared:   &Shared,
+        scene: &mut dyn Renderable<Shared>,
+        shared: &Shared,
     ) {
         let rect = ui.available_rect_before_wrap();
-        let ppp  = ui.ctx().pixels_per_point();
-        let w    = (rect.width()  * ppp) as u32;
-        let h    = (rect.height() * ppp) as u32;
+        let ppp = ui.ctx().pixels_per_point();
+        let w = (rect.width() * ppp) as u32;
+        let h = (rect.height() * ppp) as u32;
         
         if w == 0 || h == 0 { return }
 
@@ -169,18 +169,18 @@ impl CoreApp {
         {
             let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view:           &viewport.view,
+                    view: &viewport.view,
                     resolve_target: None,
-                    depth_slice:    None,
+                    depth_slice: None,
                     ops: wgpu::Operations {
-                        load:  wgpu::LoadOp::Clear(wgpu::Color { r: 0.1, g: 0.1, b: 0.15, a: 1.0 }),
+                        load: wgpu::LoadOp::Clear(viewport.clear_color),
                         store: wgpu::StoreOp::Store,
                     },
                 })],
                 depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
                     view: &viewport.depth_view,
                     depth_ops: Some(wgpu::Operations {
-                        load:  wgpu::LoadOp::Clear(1.0),
+                        load: wgpu::LoadOp::Clear(1.0),
                         store: wgpu::StoreOp::Discard,
                     }),
                     stencil_ops: None,
@@ -221,7 +221,7 @@ impl CoreApp {
         self.egui_winit.handle_platform_output(&self.window, egui_out.platform_output);
         let tris = self.egui_ctx.tessellate(egui_out.shapes, egui_out.pixels_per_point);
         let sd = egui_wgpu::ScreenDescriptor {
-            size_in_pixels:   [self.surface_config.width, self.surface_config.height],
+            size_in_pixels: [self.surface_config.width, self.surface_config.height],
             pixels_per_point: egui_out.pixels_per_point,
         };
         for (id, img) in &egui_out.textures_delta.set {
@@ -237,7 +237,7 @@ impl CoreApp {
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                     view,
                     resolve_target: None,
-                    depth_slice:    None,
+                    depth_slice: None,
                     ops: wgpu::Operations { load: wgpu::LoadOp::Load, store: wgpu::StoreOp::Store },
                 })],
                 depth_stencil_attachment: None,
@@ -249,9 +249,9 @@ impl CoreApp {
         for id in &egui_out.textures_delta.free { self.egui_renderer.free_texture(id); }
     }
 
-    pub fn new(window: Arc<Window>) -> Self {
+    pub fn new(window: Arc<Window>, backends: wgpu::Backends) -> Self {
         let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor {
-            backends: wgpu::Backends::VULKAN | wgpu::Backends::GL,
+            backends,
             ..Default::default()
         });
         let surface = instance.create_surface(Arc::clone(&window)).unwrap();
@@ -264,10 +264,10 @@ impl CoreApp {
             &wgpu::DeviceDescriptor::default(),
         )).expect("no device");
         let device = Arc::new(device);
-        let queue  = Arc::new(queue);
-        let size   = window.inner_size();
-        let caps   = surface.get_capabilities(&adapter);
-        let fmt    = caps.formats.iter().copied().find(|f| f.is_srgb()).unwrap_or(caps.formats[0]);
+        let queue = Arc::new(queue);
+        let size = window.inner_size();
+        let caps = surface.get_capabilities(&adapter);
+        let fmt = caps.formats.iter().copied().find(|f| f.is_srgb()).unwrap_or(caps.formats[0]);
         let surface_config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
             format: fmt,
@@ -297,12 +297,12 @@ impl CoreApp {
 
     pub fn resize(&mut self, w: u32, h: u32) {
         if w == 0 || h == 0 { return; }
-        self.surface_config.width  = w;
+        self.surface_config.width = w;
         self.surface_config.height = h;
         self.surface.as_ref().unwrap().configure(&self.device, &self.surface_config);
         let (dt, dv) = create_depth(&self.device, w, h);
         self.depth_texture = dt;
-        self.depth_view    = dv;
+        self.depth_view = dv;
     }
 }
 
@@ -323,26 +323,27 @@ fn create_depth(device: &Device, w: u32, h: u32) -> (wgpu::Texture, wgpu::Textur
 }
 
 #[cfg(feature = "egui")]
-pub trait GameApp: Sized + 'static {
-    fn new(core: &mut CoreApp) -> Self;
-    /// Return true to consume event
-    fn on_event(&mut self, core: &mut CoreApp, event: &WindowEvent) -> bool;
-    fn on_device_event(&mut self, core: &mut CoreApp, event: &DeviceEvent) { let _ = (core, event); }
-    fn update(&mut self, core: &mut CoreApp, dt: f32) { let _ = (core, dt); }
-    fn ui(&mut self, core: &mut CoreApp, ctx: &egui::Context) { let _ = (core, ctx); }
+pub trait App: Sized + 'static {
     fn name() -> &'static str { "App" }
     fn size() -> LogicalSize<u32> { LogicalSize::new(1280, 720) }
+    fn backends() -> wgpu::Backends { wgpu::Backends::default() }
+    fn new(core: &mut Core) -> Self;
+    /// Return true to consume event
+    fn on_event(&mut self, core: &mut Core, event: &WindowEvent) -> bool;
+    fn on_device_event(&mut self, core: &mut Core, event: &DeviceEvent) { let _ = (core, event); }
+    fn update(&mut self, core: &mut Core, dt: f32) { let _ = (core, dt); }
+    fn ui(&mut self, core: &mut Core, ctx: &egui::Context) { let _ = (core, ctx); }
 }
 
 #[cfg(feature = "egui")]
-struct AppRunner<G: GameApp> {
-    core:  Option<CoreApp>,
-    game:  Option<G>,
-    last:  std::time::Instant,
+struct AppRunner<G: App> {
+    core: Option<Core>,
+    game: Option<G>,
+    last: std::time::Instant,
 }
 
 #[cfg(feature = "egui")]
-impl<G: GameApp> ApplicationHandler for AppRunner<G> {
+impl<G: App> ApplicationHandler for AppRunner<G> {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         let window = Arc::new(
             event_loop.create_window(
@@ -351,7 +352,7 @@ impl<G: GameApp> ApplicationHandler for AppRunner<G> {
                     .with_inner_size(G::size())
             ).unwrap()
         );
-        let mut core = CoreApp::new(window);
+        let mut core = Core::new(window, G::backends());
         let game = G::new(&mut core);
         self.core = Some(core);
         self.game = Some(game);
@@ -373,7 +374,7 @@ impl<G: GameApp> ApplicationHandler for AppRunner<G> {
             WindowEvent::Resized(size) => core.resize(size.width, size.height),
             WindowEvent::RedrawRequested => {
                 let now = std::time::Instant::now();
-                let dt  = (now - self.last).as_secs_f32().min(0.1);
+                let dt = (now - self.last).as_secs_f32().min(0.1);
                 self.last = now;
 
                 let (core, game) = (self.core.as_mut().unwrap(), self.game.as_mut().unwrap());
@@ -413,7 +414,7 @@ impl<G: GameApp> ApplicationHandler for AppRunner<G> {
 }
 
 #[cfg(feature = "egui")]
-pub fn run<G: GameApp>() -> Result<(), EventLoopError> {
+pub fn run<G: App>() -> Result<(), EventLoopError> {
     let event_loop = EventLoop::new()?;
     let mut runner = AppRunner::<G> {
         core: None, game: None, last: std::time::Instant::now()

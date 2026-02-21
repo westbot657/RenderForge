@@ -1,6 +1,6 @@
 // src/main.rs
 
-use egui::{Frame, Sense};
+use egui::Frame;
 use glam::{Mat4, Vec3, Vec4};
 use wgpu::{ColorTargetState, CompareFunction, DepthStencilState, Face, FrontFace, TextureFormat};
 use winit::{
@@ -8,8 +8,8 @@ use winit::{
     keyboard::{KeyCode, PhysicalKey},
     window::CursorGrabMode,
 };
-use renderforge::{quad, CoreApp, GameApp, Renderable, Viewport};
-use renderforge::builtin::{geometry, instanced, uniforms};
+use renderforge::{quad, Core, App, Renderable, Viewport};
+use renderforge::builtin::{geometry, instanced};
 use renderforge::builtin::uniforms::CameraUniformLayout;
 use renderforge::geometry::primitive::Quad;
 use renderforge::render::camera::Camera;
@@ -22,10 +22,10 @@ use wgpu::{Device, Queue};
 
 #[derive(Default)]
 struct Keys {
-    w:     bool,
-    a:     bool,
-    s:     bool,
-    d:     bool,
+    w: bool,
+    a: bool,
+    s: bool,
+    d: bool,
     shift: bool,
     space: bool,
 }
@@ -34,7 +34,7 @@ struct Keys {
 
 struct CubeDrawer {
     drawer: InstanceDrawer<instanced::pos::Layout>,
-    pos:    Mat4,
+    pos: Mat4,
 }
 
 impl<Shared: Sync + Send> Renderable<Shared> for CubeDrawer {
@@ -46,12 +46,12 @@ impl<Shared: Sync + Send> Renderable<Shared> for CubeDrawer {
 // ---- Game ----
 
 struct CubeGame {
-    scene:          Scene<()>,
-    pos:            Vec3,
-    yaw:            f32,
-    pitch:          f32,
-    keys:           Keys,
-    viewport:       Viewport,
+    scene: Scene<()>,
+    pos: Vec3,
+    yaw: f32,
+    pitch: f32,
+    keys: Keys,
+    viewport: Viewport,
     mouse_captured: bool,
 }
 
@@ -65,7 +65,7 @@ impl CubeGame {
         Mat4::look_at_lh(self.pos, self.pos + dir, Vec3::Y)
     }
 
-    fn set_mouse_captured(&mut self, core: &CoreApp, captured: bool) {
+    fn set_mouse_captured(&mut self, core: &Core, captured: bool) {
         self.mouse_captured = captured;
         let window = core.window();
         if captured {
@@ -79,12 +79,12 @@ impl CubeGame {
     }
 }
 
-impl GameApp for CubeGame {
-    fn new(core: &mut CoreApp) -> Self {
+impl App for CubeGame {
+    fn new(core: &mut Core) -> Self {
         let fmt = core.surface_format();
 
         let uniforms_layout = CameraUniformLayout {
-            name:     String::from("Camera"),
+            name: String::from("Camera"),
             location: 0,
         };
         let camera_setter = uniforms_layout.create_setter();
@@ -109,53 +109,53 @@ impl GameApp for CubeGame {
                 Vec3::new( 1., -1., -1.), Vec4::new(1., 0., 0., 1.);
             ],
             quad![geometry::pos_color::Vertex::new:
-                Vec3::new( 1., 1.,-1.), Vec4::new(1.,1.,0.,1.);
-                Vec3::new( 1., 1., 1.), Vec4::new(1.,1.,1.,1.);
-                Vec3::new(-1., 1., 1.), Vec4::new(0.,1.,1.,1.);
-                Vec3::new(-1., 1.,-1.), Vec4::new(0.,1.,0.,1.);
+                Vec3::new( 1., 1., -1.), Vec4::new(1., 1., 0., 1.);
+                Vec3::new( 1., 1.,  1.), Vec4::new(1., 1., 1., 1.);
+                Vec3::new(-1., 1.,  1.), Vec4::new(0., 1., 1., 1.);
+                Vec3::new(-1., 1., -1.), Vec4::new(0., 1., 0., 1.);
             ],
             quad![geometry::pos_color::Vertex::new:
-                Vec3::new(-1., 1., 1.), Vec4::new(0.,1.,1.,1.);
-                Vec3::new( 1., 1., 1.), Vec4::new(1.,1.,1.,1.);
-                Vec3::new( 1.,-1., 1.), Vec4::new(1.,0.,1.,1.);
-                Vec3::new(-1.,-1., 1.), Vec4::new(0.,0.,1.,1.);
+                Vec3::new(-1.,  1., 1.), Vec4::new(0., 1., 1., 1.);
+                Vec3::new( 1.,  1., 1.), Vec4::new(1., 1., 1., 1.);
+                Vec3::new( 1., -1., 1.), Vec4::new(1., 0., 1., 1.);
+                Vec3::new(-1., -1., 1.), Vec4::new(0., 0., 1., 1.);
             ],
             quad![geometry::pos_color::Vertex::new:
-                Vec3::new( 1., 1.,-1.), Vec4::new(1.,1.,0.,1.);
-                Vec3::new(-1., 1.,-1.), Vec4::new(0.,1.,0.,1.);
-                Vec3::new(-1.,-1.,-1.), Vec4::new(0.,0.,0.,1.);
-                Vec3::new( 1.,-1.,-1.), Vec4::new(1.,0.,0.,1.);
+                Vec3::new( 1.,  1., -1.), Vec4::new(1., 1., 0., 1.);
+                Vec3::new(-1.,  1., -1.), Vec4::new(0., 1., 0., 1.);
+                Vec3::new(-1., -1., -1.), Vec4::new(0., 0., 0., 1.);
+                Vec3::new( 1., -1., -1.), Vec4::new(1., 0., 0., 1.);
             ],
             quad![geometry::pos_color::Vertex::new:
-                Vec3::new( 1., 1., 1.), Vec4::new(1.,1.,1.,1.);
-                Vec3::new( 1., 1.,-1.), Vec4::new(1.,1.,0.,1.);
-                Vec3::new( 1.,-1.,-1.), Vec4::new(1.,0.,0.,1.);
-                Vec3::new( 1.,-1., 1.), Vec4::new(1.,0.,1.,1.);
+                Vec3::new( 1.,  1.,  1.), Vec4::new(1., 1., 1., 1.);
+                Vec3::new( 1.,  1., -1.), Vec4::new(1., 1., 0., 1.);
+                Vec3::new( 1., -1., -1.), Vec4::new(1., 0., 0., 1.);
+                Vec3::new( 1., -1.,  1.), Vec4::new(1., 0., 1., 1.);
             ],
             quad![geometry::pos_color::Vertex::new:
-                Vec3::new(-1., 1.,-1.), Vec4::new(0.,1.,0.,1.);
-                Vec3::new(-1., 1., 1.), Vec4::new(0.,1.,1.,1.);
-                Vec3::new(-1.,-1., 1.), Vec4::new(0.,0.,1.,1.);
-                Vec3::new(-1.,-1.,-1.), Vec4::new(0.,0.,0.,1.);
+                Vec3::new(-1.,  1., -1.), Vec4::new(0., 1., 0., 1.);
+                Vec3::new(-1.,  1.,  1.), Vec4::new(0., 1., 1., 1.);
+                Vec3::new(-1., -1.,  1.), Vec4::new(0., 0., 1., 1.);
+                Vec3::new(-1., -1., -1.), Vec4::new(0., 0., 0., 1.);
             ],
         ]);
 
         let instanced = cube_shader.create_instanced_renderer::<SinglePipelineSelector<_, ()>, _, _, _>(
             core.device(), core.queue(),
             &[PipelineConfig {
-                cull_mode:     Some(Face::Back),
-                front_face:    FrontFace::Ccw,
-                targets:       vec![Some(ColorTargetState {
-                    format:     fmt,
-                    blend:      None,
+                cull_mode: Some(Face::Back),
+                front_face: FrontFace::Ccw,
+                targets: vec![Some(ColorTargetState {
+                    format: fmt,
+                    blend: None,
                     write_mask: Default::default(),
                 })],
                 depth_stencil: Some(DepthStencilState {
-                    format:               TextureFormat::Depth32Float,
-                    depth_write_enabled:  true,
-                    depth_compare:        CompareFunction::Less,
-                    stencil:              Default::default(),
-                    bias:                 Default::default(),
+                    format: TextureFormat::Depth32Float,
+                    depth_write_enabled: true,
+                    depth_compare: CompareFunction::Less,
+                    stencil: Default::default(),
+                    bias: Default::default(),
                 }),
             }],
             cube, camera_setter, 20,
@@ -166,7 +166,7 @@ impl GameApp for CubeGame {
         let scene = Scene::with_components(vec![
             Box::new(CubeDrawer {
                 drawer: drawer.clone(),
-                pos:    Mat4::IDENTITY,
+                pos: Mat4::IDENTITY,
             }),
             Box::new(CubeDrawer {
                 drawer,
@@ -176,20 +176,20 @@ impl GameApp for CubeGame {
             Box::new(instanced),
         ]);
 
-        let viewport = core.create_viewport();
+        let viewport = core.create_viewport(wgpu::Color::BLACK);
 
         Self {
             scene,
-            pos:            Vec3::new(0., 0., -5.),
-            yaw:            0.,
-            pitch:          0.,
-            keys:           Keys::default(),
+            pos: Vec3::new(0., 0., -5.),
+            yaw: 0.,
+            pitch: 0.,
+            keys: Keys::default(),
             viewport,
             mouse_captured: false,
         }
     }
 
-    fn on_event(&mut self, core: &mut CoreApp, event: &WindowEvent) -> bool {
+    fn on_event(&mut self, core: &mut Core, event: &WindowEvent) -> bool {
         match event {
             WindowEvent::MouseInput {
                 state: ElementState::Pressed,
@@ -230,23 +230,23 @@ impl GameApp for CubeGame {
         }
     }
 
-    fn on_device_event(&mut self, _core: &mut CoreApp, event: &DeviceEvent) {
+    fn on_device_event(&mut self, _core: &mut Core, event: &DeviceEvent) {
         if !self.mouse_captured { return; }
         if let DeviceEvent::MouseMotion { delta: (dx, dy) } = event {
-            self.yaw   += *dx as f32 * 0.003;
-            self.pitch  = (self.pitch - *dy as f32 * 0.003).clamp(-1.5, 1.5);
+            self.yaw += *dx as f32 * 0.003;
+            self.pitch = (self.pitch - *dy as f32 * 0.003).clamp(-1.5, 1.5);
         }
     }
 
-    fn update(&mut self, core: &mut CoreApp, dt: f32) {
-        let speed   = 8.0 * dt;
-        let forward = Vec3::new( self.yaw.sin(), 0.,  self.yaw.cos());
-        let right   = Vec3::new( self.yaw.cos(), 0., -self.yaw.sin());
+    fn update(&mut self, core: &mut Core, dt: f32) {
+        let speed = 8.0 * dt;
+        let forward = Vec3::new( self.yaw.sin(), 0., self.yaw.cos());
+        let right = Vec3::new( self.yaw.cos(), 0., -self.yaw.sin());
 
-        if self.keys.w     { self.pos += forward * speed; }
-        if self.keys.s     { self.pos -= forward * speed; }
-        if self.keys.a     { self.pos -= right   * speed; }
-        if self.keys.d     { self.pos += right   * speed; }
+        if self.keys.w { self.pos += forward * speed; }
+        if self.keys.s { self.pos -= forward * speed; }
+        if self.keys.a { self.pos -= right * speed; }
+        if self.keys.d { self.pos += right * speed; }
         if self.keys.shift { self.pos.y -= speed; }
         if self.keys.space { self.pos.y += speed; }
 
@@ -258,10 +258,10 @@ impl GameApp for CubeGame {
         };
 
         self.scene.pre_render(core.device(), core.queue(), &camera, &());
-        core.set_camera(camera);
+        *core.camera_mut() = camera;
     }
 
-    fn ui(&mut self, core: &mut CoreApp, ctx: &egui::Context) {
+    fn ui(&mut self, core: &mut Core, ctx: &egui::Context) {
 
         egui::CentralPanel::default()
             .frame(Frame::NONE)

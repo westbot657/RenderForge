@@ -1,5 +1,3 @@
-use std::collections::HashSet;
-use std::sync::Arc;
 use wgpu::{Device, Queue, RenderPass};
 use crate::render::camera::Camera;
 
@@ -37,8 +35,14 @@ use egui_winit::winit::{
     keyboard::{KeyCode, PhysicalKey},
     window::{Window, WindowId}
 };
+#[cfg(feature = "egui")]
 use egui_winit::winit::dpi::LogicalSize;
+#[cfg(feature = "egui")]
 use glam::Mat4;
+#[cfg(feature = "egui")]
+use std::collections::HashSet;
+#[cfg(feature = "egui")]
+use std::sync::Arc;
 
 #[cfg(feature = "egui")]
 pub struct Viewport {

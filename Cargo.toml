@@ -5,7 +5,7 @@ members = [
 
 [package]
 name = "renderforge"
-version = "0.2.2"
+version = "0.3.0"
 edition = "2024"
 description = "A Rendering framework built on top of glow"
 license = "GPL-3.0-only"
@@ -19,19 +19,21 @@ exclude = ["/test_app"]
 default = ["opengl", "vulkan", "egui"]
 opengl = ["wgpu/gles", "wgpu/glsl"]
 vulkan = ["wgpu/vulkan", "wgpu/vulkan-portability"]
-egui = ["dep:egui"]
+egui = ["dep:egui", "dep:egui-winit", "dep:winit", "dep:egui-wgpu"]
 debug = []
 
 [dependencies]
 wgpu = { version = "27.0.1", features = ["std", "spirv", "angle", "wgsl"] }
+
 egui = { version = "0.33.3", features = ["mint", "bytemuck"], optional = true }
+egui-winit = { version = "0.33.3", optional = true }
+winit = { version = "0.31.0-beta.2", optional = true }
+egui-wgpu = { version = "0.33.3", optional = true }
+
 glam = { version = "0.32.0", features = ["bytemuck"] }
 shaderc = "0.10.1"
 pollster = "0.4.0"
 thiserror = { version = "2.0.16" }
 bytemuck = { version = "1.25.0", features = ["derive"] }
-egui-winit = "0.33.3"
-winit = "0.31.0-beta.2"
-egui-wgpu = "0.33.3"
 
 

@@ -6,7 +6,7 @@ edition = "2024"
 publish = false
 
 [dependencies]
-renderforge = { path = "../../RenderForge" }
+renderforge = { path = "../../RenderForge", features = ["egui"] }
 egui = { version = "0.33.3", features = ["mint"] }
 egui-winit = { version = "0.33.3", features = ["bytemuck", "wayland", "clipboard"] }
 egui-wgpu = "0.33.3"

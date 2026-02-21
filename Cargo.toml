@@ -16,17 +16,22 @@ categories = ["rendering"]
 exclude = ["/test_app"]
 
 [features]
-default = ["opengl"]
+default = ["opengl", "vulkan", "egui"]
 opengl = ["wgpu/gles", "wgpu/glsl"]
 vulkan = ["wgpu/vulkan", "wgpu/vulkan-portability"]
+egui = ["dep:egui"]
 debug = []
 
 [dependencies]
 wgpu = { version = "27.0.1", features = ["std", "spirv", "angle", "wgsl"] }
+egui = { version = "0.33.3", features = ["mint", "bytemuck"], optional = true }
 glam = { version = "0.32.0", features = ["bytemuck"] }
 shaderc = "0.10.1"
 pollster = "0.4.0"
 thiserror = { version = "2.0.16" }
 bytemuck = { version = "1.25.0", features = ["derive"] }
+egui-winit = "0.33.3"
+winit = "0.31.0-beta.2"
+egui-wgpu = "0.33.3"
 
 

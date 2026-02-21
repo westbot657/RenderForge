@@ -233,12 +233,18 @@ impl State {
         let drawer = instanced.create_drawer();
 
         let c1 = CubeDrawer {
-            drawer,
+            drawer: drawer.clone(),
             pos: Mat4::IDENTITY,
+        };
+
+        let c2 = CubeDrawer {
+            drawer,
+            pos: Mat4::from_translation(Vec3::new(3., 0., 0.)) * Mat4::from_scale(Vec3::splat(0.5))
         };
 
         let scene = Scene::with_components(vec![
             Box::new(c1),
+            Box::new(c2),
 
             Box::new(instanced),
         ]);

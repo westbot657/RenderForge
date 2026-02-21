@@ -1,5 +1,9 @@
+use wgpu::{Device, Queue, RenderPass};
+use crate::render::camera::Camera;
+
 pub mod geometry;
 pub mod render;
+pub mod builtin;
 
 #[cfg(feature = "debug")]
 pub trait SizedThreadSafe: Sized + Sync + Send + std::fmt::Debug {}
@@ -12,6 +16,15 @@ impl<T> SizedThreadSafe for T where T: Sized + Sync + Send + std::fmt::Debug {}
 impl<T> SizedThreadSafe for T where T: Sized + Sync + Send {}
 
 
+pub trait Renderable<Shared> : Send + Sync {
+    fn pre_render(&mut self, device: &Device, queue: &Queue, camera: &Camera, shared: &Shared);
+    fn render(&mut self, device: &Device, pass: &mut RenderPass, camera: &Camera, shared: &Shared);
+}
+
+
+struct BaseApp {
+
+}
 
 
 

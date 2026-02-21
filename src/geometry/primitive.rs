@@ -79,3 +79,53 @@ impl<Vertex: geometry::Vertex> Primitive for Point<Vertex> {
     fn write(&self, buffer: &mut Vec<u8>) { self.0.write(buffer) }
     fn transform(&mut self, transformer: &impl Fn(&mut Self::Vertex)) { transformer(&mut self.0) }
 }
+
+#[macro_export]
+macro_rules! quad {
+    (
+        $vert:path:
+        $( $a:expr ),* ;
+        $( $b:expr ),* ;
+        $( $c:expr ),* ;
+        $( $d:expr ),* $(;)?
+    ) => {
+        Quad([
+            $vert( $( $a ),* ),
+            $vert( $( $b ),* ),
+            $vert( $( $c ),* ),
+            $vert( $( $d ),* )
+        ])
+    };
+}
+
+#[macro_export]
+macro_rules! tri {
+    (
+        $vert:path:
+        $( $a:expr ),* ;
+        $( $b:expr ),* ;
+        $( $c:expr ),* $(;)?
+    ) => {
+        Tri([
+            $vert( $( $a ),* ),
+            $vert( $( $b ),* ),
+            $vert( $( $c ),* )
+        ])
+    };
+}
+
+#[macro_export]
+macro_rules! line {
+    (
+        $vert:path:
+        $( $a:expr ),* ;
+        $( $b:expr ),* $(;)?
+    ) => {
+        Line([
+            $vert( $( $a ),* ),
+            $vert( $( $b ),* )
+        ])
+    };
+}
+
+pub use {quad, tri, line};

@@ -19,7 +19,7 @@ pub trait Primitive: SizedThreadSafe {
 pub trait GeometryLayout: SizedThreadSafe + Clone {
     type Vertex: Vertex;
     /// Returns an iterator over attributes' layout location and format
-    fn attributes(&self) -> impl Iterator<Item = (u32, VertexFormat)>;
+    fn attributes(&self) -> impl Iterator<Item=(u32, VertexFormat)>;
     /// There is almost no reason to override this function
     fn span(&self) -> u64 { self.attributes().map(|(_, format)| format.size()).sum() }
 }
@@ -38,7 +38,7 @@ impl GeometryLayout for () {
 pub struct Geometry<Layout, Primitive>
 where
     Layout: GeometryLayout,
-    Primitive: crate::geometry::Primitive<Vertex = Layout::Vertex>,
+    Primitive: crate::geometry::Primitive<Vertex=Layout::Vertex>,
 {
     pub primitives: Vec<Primitive>,
     pub layout: Layout,
@@ -47,7 +47,7 @@ where
 impl<Layout, Primitive> Geometry<Layout, Primitive>
 where
     Layout: GeometryLayout,
-    Primitive: crate::geometry::Primitive<Vertex = Layout::Vertex>,
+    Primitive: crate::geometry::Primitive<Vertex=Layout::Vertex>,
 {
     pub fn new(layout: Layout) -> Self {
         Self {
@@ -55,4 +55,11 @@ where
             layout,
         }
     }
+    
+    pub fn write(&self, buffer: &mut Vec<u8>) {
+        for p in &self.primitives {
+            p.write(buffer)
+        }
+    }
+    
 }

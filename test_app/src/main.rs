@@ -2,7 +2,7 @@
 
 use bytemuck::{Pod, Zeroable};
 use egui_wgpu::{RendererOptions, ScreenDescriptor};
-use glam::{Mat4, Vec3};
+use glam::{Mat4, Vec3, Vec4};
 use std::sync::Arc;
 use wgpu::{ExperimentalFeatures, Trace};
 use wgpu::util::DeviceExt;
@@ -13,7 +13,10 @@ use winit::{
     keyboard::{KeyCode, PhysicalKey},
     window::{CursorGrabMode, Window, WindowId},
 };
-
+use renderforge::builtin::{geometry, instanced, uniforms};
+use renderforge::geometry::primitive::Quad;
+use renderforge::quad;
+use renderforge::render::shader::{Shader, ShaderLayout, Source};
 // ---- GPU types ----
 
 #[repr(C)]
@@ -87,7 +90,7 @@ struct State {
 impl State {
     fn new(window: Arc<Window>) -> Self {
         let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor {
-            backends: wgpu::Backends::VULKAN | wgpu::Backends::GL,
+            backends: wgpu::Backends::GL | wgpu::Backends::VULKAN,
             ..Default::default()
         });
 
@@ -133,7 +136,64 @@ impl State {
 
         // ---- Depth texture ----
         let (depth_texture, depth_view) = create_depth(&device, size.width, size.height);
-
+        
+        let cube_shader = Shader::new_wgsl(
+            device.as_ref(), 
+            Source {
+                name: Some("cube.wgsl"),
+                source: include_str!("cube.wgsl")
+            },
+            "vs_main", "fs_main",
+            ShaderLayout {
+                geometry_layout: geometry::pos_color::Layout(0),
+                instance_layout: instanced::pos::Layout(2),
+                uniforms_layout: uniforms::CameraUniformLayout {
+                    name: String::from("Camera"),
+                    location: 0,
+                }
+            }
+        ).unwrap();
+        
+        let mut cube = cube_shader.create_geometry::<Quad<_>>();
+        cube.primitives.extend_from_slice(&[
+            quad![geometry::pos_color::Vertex::new:
+                Vec3::new(-1., -1., -1.), Vec4::new(0., 0., 0., 1.);
+                Vec3::new(-1., -1., -1.), Vec4::new(0., 0., 0., 1.);
+                Vec3::new(-1., -1., -1.), Vec4::new(0., 0., 0., 1.);
+                Vec3::new(-1., -1., -1.), Vec4::new(0., 0., 0., 1.);
+            ],
+            quad![geometry::pos_color::Vertex::new:
+                Vec3::new( 1., 1.,-1.), Vec4::new(1.,1.,0.,1.);
+                Vec3::new( 1., 1., 1.), Vec4::new(1.,1.,1.,1.);
+                Vec3::new(-1., 1., 1.), Vec4::new(0.,1.,1.,1.);
+                Vec3::new(-1., 1.,-1.), Vec4::new(0.,1.,0.,1.);
+            ],
+            quad![geometry::pos_color::Vertex::new:
+                Vec3::new(-1., 1., 1.), Vec4::new(0.,1.,1.,1.);
+                Vec3::new( 1., 1., 1.), Vec4::new(1.,1.,1.,1.);
+                Vec3::new( 1.,-1., 1.), Vec4::new(1.,0.,1.,1.);
+                Vec3::new(-1.,-1., 1.), Vec4::new(0.,0.,1.,1.);
+            ],
+            quad![geometry::pos_color::Vertex::new:
+                Vec3::new( 1., 1.,-1.), Vec4::new(1.,1.,0.,1.);
+                Vec3::new(-1., 1.,-1.), Vec4::new(0.,1.,0.,1.);
+                Vec3::new(-1.,-1.,-1.), Vec4::new(0.,0.,0.,1.);
+                Vec3::new( 1.,-1.,-1.), Vec4::new(1.,0.,0.,1.);
+            ],
+            quad![geometry::pos_color::Vertex::new:
+                Vec3::new( 1., 1., 1.), Vec4::new(1.,1.,1.,1.);
+                Vec3::new( 1., 1.,-1.), Vec4::new(1.,1.,0.,1.);
+                Vec3::new( 1.,-1.,-1.), Vec4::new(1.,0.,0.,1.);
+                Vec3::new( 1.,-1., 1.), Vec4::new(1.,0.,1.,1.);
+            ],
+            quad![geometry::pos_color::Vertex::new:
+                Vec3::new(-1., 1.,-1.), Vec4::new(0.,1.,0.,1.);
+                Vec3::new(-1., 1., 1.), Vec4::new(0.,1.,1.,1.);
+                Vec3::new(-1.,-1., 1.), Vec4::new(0.,0.,1.,1.);
+                Vec3::new(-1.,-1.,-1.), Vec4::new(0.,0.,0.,1.);
+            ]
+        ]);
+        
         // ---- Scene shader ----
         let scene_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label:  Some("scene"),
@@ -142,36 +202,6 @@ impl State {
 
         // ---- Geometry ----
         let verts: &[Vertex] = &[
-            // bottom (Y-)
-            Vertex { pos: [-1.,-1.,-1.], color: [0.,0.,0.,1.] },
-            Vertex { pos: [-1.,-1., 1.], color: [0.,0.,1.,1.] },
-            Vertex { pos: [ 1.,-1., 1.], color: [1.,0.,1.,1.] },
-            Vertex { pos: [ 1.,-1.,-1.], color: [1.,0.,0.,1.] },
-            // top (Y+)
-            Vertex { pos: [ 1., 1.,-1.], color: [1.,1.,0.,1.] },
-            Vertex { pos: [ 1., 1., 1.], color: [1.,1.,1.,1.] },
-            Vertex { pos: [-1., 1., 1.], color: [0.,1.,1.,1.] },
-            Vertex { pos: [-1., 1.,-1.], color: [0.,1.,0.,1.] },
-            // front (Z+)
-            Vertex { pos: [-1., 1., 1.], color: [0.,1.,1.,1.] },
-            Vertex { pos: [ 1., 1., 1.], color: [1.,1.,1.,1.] },
-            Vertex { pos: [ 1.,-1., 1.], color: [1.,0.,1.,1.] },
-            Vertex { pos: [-1.,-1., 1.], color: [0.,0.,1.,1.] },
-            // back (Z-)
-            Vertex { pos: [ 1., 1.,-1.], color: [1.,1.,0.,1.] },
-            Vertex { pos: [-1., 1.,-1.], color: [0.,1.,0.,1.] },
-            Vertex { pos: [-1.,-1.,-1.], color: [0.,0.,0.,1.] },
-            Vertex { pos: [ 1.,-1.,-1.], color: [1.,0.,0.,1.] },
-            // right (X+)
-            Vertex { pos: [ 1., 1., 1.], color: [1.,1.,1.,1.] },
-            Vertex { pos: [ 1., 1.,-1.], color: [1.,1.,0.,1.] },
-            Vertex { pos: [ 1.,-1.,-1.], color: [1.,0.,0.,1.] },
-            Vertex { pos: [ 1.,-1., 1.], color: [1.,0.,1.,1.] },
-            // left (X-)
-            Vertex { pos: [-1., 1.,-1.], color: [0.,1.,0.,1.] },
-            Vertex { pos: [-1., 1., 1.], color: [0.,1.,1.,1.] },
-            Vertex { pos: [-1.,-1., 1.], color: [0.,0.,1.,1.] },
-            Vertex { pos: [-1.,-1.,-1.], color: [0.,0.,0.,1.] },
         ];
 
         let mut final_verts: Vec<Vertex> = Vec::with_capacity(36);
@@ -214,7 +244,7 @@ impl State {
         // ---- Camera uniform ----
         let camera_buf = device.create_buffer(&wgpu::BufferDescriptor {
             label:              Some("camera_buf"),
-            size:               std::mem::size_of::<CameraUniform>() as u64,
+            size:               size_of::<CameraUniform>() as u64,
             usage:              wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
@@ -430,7 +460,6 @@ impl State {
         };
         let view = output.texture.create_view(&Default::default());
 
-        let mut encoder = self.device.create_command_encoder(&Default::default());
 
         // ---- scene pass — submit immediately ----
         {

@@ -3,7 +3,7 @@ pub mod camera;
 pub mod renderer;
 
 use std::collections::HashMap;
-use wgpu::{AddressMode, BindGroup, BindingType, BufferBindingType, BufferSize, CompareFunction, Device, Extent3d, FilterMode, Queue, RenderPass, SamplerBindingType, SamplerBorderColor, ShaderStages, TextureFormat, TextureSampleType, TextureViewDimension, VertexFormat};
+use wgpu::{AddressMode, BindingType, BufferBindingType, BufferSize, CompareFunction, Device, Extent3d, FilterMode, Queue, RenderPass, SamplerBindingType, SamplerBorderColor, ShaderStages, TextureFormat, TextureSampleType, TextureViewDimension, VertexFormat};
 use crate::render::camera::Camera;
 use crate::render::shader::ShaderPipeline;
 use crate::{Renderable, SizedThreadSafe};
@@ -19,8 +19,8 @@ pub trait InstanceLayout: SizedThreadSafe + Clone {
     fn attributes(&self) -> impl Iterator<Item=(u32, VertexFormat)>;
     /// There is almost no reason to override this function
     fn span(&self) -> u64 { self.attributes().map(|(_, format)| format.size()).sum() }
-    /// Do not override this, it only exists so that unit type can skip instance setup
-    unsafe fn is_instanced() -> bool { true }
+    /// **Do not override this**, it only exists so that unit type can skip instance setup
+    fn is_instanced() -> bool { true }
 }
 
 impl Data for () {
@@ -30,7 +30,7 @@ impl Data for () {
 impl InstanceLayout for () {
     type Data = ();
     fn attributes(&self) -> impl Iterator<Item=(u32, VertexFormat)> { [].into_iter() }
-    unsafe fn is_instanced() -> bool { false }
+    fn is_instanced() -> bool { false }
 }
 
 #[derive(Copy, Clone)]
@@ -172,7 +172,7 @@ where
     }
 }
 
-
+#[derive(Default)]
 pub struct Scene<Shared: Sync + Send> {
     pub components: Vec<Box<dyn Renderable<Shared>>>
 }

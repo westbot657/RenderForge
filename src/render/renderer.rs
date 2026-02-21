@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut};
-use std::sync::{Arc, Mutex, RwLock};
+use std::sync::{Arc, Mutex};
 use wgpu::{Buffer, BufferUsages, Device, Queue, RenderPass};
 use wgpu::util::{BufferInitDescriptor, DeviceExt};
 use crate::{geometry, Renderable};
@@ -297,7 +297,7 @@ where
     fn setup(&self, device: &Device, queue: &Queue, camera: &Camera, shared: &Shared) {
         self.selector.select(shared).setup(device, queue, camera, shared)
     }
-    fn render(&mut self, device: &Device, pass: &mut RenderPass, camera: &Camera, shared: &Shared) {
+    fn render(&mut self, _: &Device, pass: &mut RenderPass, _: &Camera, shared: &Shared) {
         self.selector.select(shared).render(pass);
         pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
     }

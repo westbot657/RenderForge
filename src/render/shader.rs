@@ -1,9 +1,16 @@
 use std::collections::HashMap;
 use std::marker::PhantomData;
-use std::sync::{Arc, Mutex, RwLock};
+use std::sync::{Arc, Mutex};
 use shaderc::{Compiler, ShaderKind};
-use wgpu::{BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingResource, BindingType, Buffer, BufferUsages, ColorTargetState, DepthStencilState, Device, ErrorFilter, Face, FragmentState, FrontFace, MultisampleState, PipelineLayoutDescriptor, PrimitiveState, Queue, RenderPass, RenderPipeline, RenderPipelineDescriptor, ShaderModule, ShaderModuleDescriptor, ShaderSource, TextureUsages, VertexAttribute, VertexBufferLayout, VertexState, VertexStepMode};
-use wgpu::wgt::{BufferDescriptor, SamplerDescriptor, TextureDescriptor, TextureViewDescriptor};
+use wgpu::{
+    BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayoutDescriptor,
+    BindGroupLayoutEntry, BufferUsages, ColorTargetState, DepthStencilState, Device, ErrorFilter,
+    Face, FragmentState, FrontFace, MultisampleState, PipelineLayoutDescriptor, PrimitiveState,
+    Queue, RenderPass, RenderPipeline, RenderPipelineDescriptor, ShaderModule,
+    ShaderModuleDescriptor, ShaderSource, TextureUsages, VertexAttribute, VertexBufferLayout,
+    VertexState, VertexStepMode
+};
+use wgpu::wgt::{BufferDescriptor, SamplerDescriptor, TextureDescriptor};
 use crate::geometry;
 use crate::geometry::{Geometry, GeometryLayout};
 use crate::render::{InstanceLayout, PipelineSelector, UniformEntry, UniformHandle, UniformType, UniformsLayout, UniformsSetter};
@@ -57,7 +64,7 @@ impl ShaderSet {
     fn vertex_shader(&self) -> &ShaderModule {
         match self {
             Self::Glsl { vsh, .. } => vsh,
-            Self::Wgsl { module, .. } => &module,
+            Self::Wgsl { module, .. } => module,
         }
     }
     fn vertex_entry(&self) -> &str {
@@ -69,7 +76,7 @@ impl ShaderSet {
     fn fragment_shader(&self) -> &ShaderModule {
         match self {
             Self::Glsl { fsh, .. } => fsh,
-            Self::Wgsl { module, .. } => &module,
+            Self::Wgsl { module, .. } => module,
         }
     }
     fn fragment_entry(&self) -> &str {
@@ -337,10 +344,7 @@ where
         }];
 
         let mut inst_attrs = Vec::new();
-        // Safety: This function is marked unsafe to discourage trait
-        // implementers from overriding it, there's nothing inherently
-        // unsafe about it.
-        if unsafe { ILayout::is_instanced() } {
+        if ILayout::is_instanced() {
             let mut offset = 0;
             for (loc, format) in self.layout.instance_layout.attributes() {
                 inst_attrs.push(VertexAttribute {
@@ -417,11 +421,11 @@ where
                 self.create_pipeline::<Primitive, _, _>(device, queue, config, uniforms.clone())?
             )
         }
-        pipelines.push(self.create_pipeline::<Primitive, _, _>(device, queue, &configs.last().unwrap(), uniforms)?);
+        pipelines.push(self.create_pipeline::<Primitive, _, _>(device, queue, configs.last().unwrap(), uniforms)?);
         Ok(pipelines)
     }
 
-
+    #[allow(clippy::too_many_arguments)]
     fn create_base_renderer
     <Primitive, Selector, Shared, Uniforms>
     (
@@ -489,10 +493,7 @@ where
         Shared: Send + Sync,
     {
 
-        // Safety: This function is marked unsafe to discourage trait
-        // implementers from overriding it, there's nothing inherently
-        // unsafe about it.
-        if !unsafe { ILayout::is_instanced() } {
+        if !ILayout::is_instanced() {
             return Err(String::from("Layout is not instanced"))
         }
 

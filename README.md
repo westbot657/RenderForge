@@ -1,13 +1,5 @@
 # RenderForge
 
-A framework intended for use with egui + glow.
-
-Defines high-level abstractions around instancing and batched rendering
-
-
-
-
-
-
-
+Defines high-level abstractions around rendering systems/concepts for wgpu
+Also provides a simple integration with egui.
 

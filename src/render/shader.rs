@@ -472,7 +472,7 @@ where
     ULayout: UniformsLayout,
 {
     pub fn create_instanced_renderer
-    <Primitive, Selector, Uniforms, Shared>
+    <Selector, Primitive, Uniforms, Shared>
     (
         &self,
         device: &Device,

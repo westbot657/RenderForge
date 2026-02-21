@@ -17,8 +17,12 @@ impl<T> SizedThreadSafe for T where T: Sized + Sync + Send {}
 
 
 pub trait Renderable<Shared> : Send + Sync {
-    fn pre_render(&mut self, device: &Device, queue: &Queue, camera: &Camera, shared: &Shared);
-    fn render(&mut self, device: &Device, pass: &mut RenderPass, camera: &Camera, shared: &Shared);
+    fn pre_render(&mut self, device: &Device, queue: &Queue, camera: &Camera, shared: &Shared) {
+        let _ = (device, queue, camera, shared);
+    }
+    fn render(&mut self, device: &Device, pass: &mut RenderPass, camera: &Camera, shared: &Shared) {
+        let _ = (device, pass, camera, shared);
+    }
 }
 
 

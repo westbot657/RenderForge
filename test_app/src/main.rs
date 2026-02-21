@@ -4,7 +4,7 @@ use bytemuck::{Pod, Zeroable};
 use egui_wgpu::{RendererOptions, ScreenDescriptor};
 use glam::{Mat4, Vec3, Vec4};
 use std::sync::Arc;
-use wgpu::{ExperimentalFeatures, Trace};
+use wgpu::{ColorTargetState, CompareFunction, DepthStencilState, Device, ExperimentalFeatures, Face, FrontFace, Queue, RenderPass, TextureFormat, Trace};
 use wgpu::util::DeviceExt;
 use winit::{
     application::ApplicationHandler,
@@ -14,9 +14,13 @@ use winit::{
     window::{CursorGrabMode, Window, WindowId},
 };
 use renderforge::builtin::{geometry, instanced, uniforms};
+use renderforge::builtin::uniforms::{CameraUniformLayout, CameraUniformSetter};
 use renderforge::geometry::primitive::Quad;
-use renderforge::quad;
-use renderforge::render::shader::{Shader, ShaderLayout, Source};
+use renderforge::{quad, Renderable};
+use renderforge::render::camera::Camera;
+use renderforge::render::renderer::InstanceDrawer;
+use renderforge::render::shader::{PipelineConfig, Shader, ShaderLayout, Source};
+use renderforge::render::{Scene, SinglePipelineSelector};
 // ---- GPU types ----
 
 #[repr(C)]
@@ -61,13 +65,8 @@ struct State {
     queue:          Arc<wgpu::Queue>,
 
     // scene
-    scene_pipeline:   wgpu::RenderPipeline,
-    vertex_buf:       wgpu::Buffer,
-    vertex_count:     u32,
-    instance_buf:     wgpu::Buffer,
-    instance_count:   u32,
-    camera_buf:       wgpu::Buffer,
-    scene_bind_group: wgpu::BindGroup,
+    scene: Scene<()>,
+
     depth_texture:    wgpu::Texture,
     depth_view:       wgpu::TextureView,
 
@@ -86,6 +85,18 @@ struct State {
     mouse_captured: bool,
     last_time:      std::time::Instant,
 }
+
+struct CubeDrawer {
+    drawer: InstanceDrawer<instanced::pos::Layout>,
+    pos: Mat4
+}
+
+impl<Shared: Sync + Send> Renderable<Shared> for CubeDrawer {
+    fn pre_render(&mut self, _: &Device, _: &Queue, _: &Camera, _: &Shared) {
+        self.drawer.draw(instanced::pos::Data(self.pos))
+    }
+}
+
 
 impl State {
     fn new(window: Arc<Window>) -> Self {
@@ -136,9 +147,16 @@ impl State {
 
         // ---- Depth texture ----
         let (depth_texture, depth_view) = create_depth(&device, size.width, size.height);
-        
+
+        let uniforms_layout = CameraUniformLayout {
+            name: String::from("Camera"),
+            location: 0,
+        };
+
+        let camera_setter = uniforms_layout.create_setter();
+
         let cube_shader = Shader::new_wgsl(
-            device.as_ref(), 
+            device.as_ref(),
             Source {
                 name: Some("cube.wgsl"),
                 source: include_str!("cube.wgsl")
@@ -147,20 +165,17 @@ impl State {
             ShaderLayout {
                 geometry_layout: geometry::pos_color::Layout(0),
                 instance_layout: instanced::pos::Layout(2),
-                uniforms_layout: uniforms::CameraUniformLayout {
-                    name: String::from("Camera"),
-                    location: 0,
-                }
+                uniforms_layout
             }
         ).unwrap();
-        
+
         let mut cube = cube_shader.create_geometry::<Quad<_>>();
         cube.primitives.extend_from_slice(&[
             quad![geometry::pos_color::Vertex::new:
                 Vec3::new(-1., -1., -1.), Vec4::new(0., 0., 0., 1.);
-                Vec3::new(-1., -1., -1.), Vec4::new(0., 0., 0., 1.);
-                Vec3::new(-1., -1., -1.), Vec4::new(0., 0., 0., 1.);
-                Vec3::new(-1., -1., -1.), Vec4::new(0., 0., 0., 1.);
+                Vec3::new(-1., -1.,  1.), Vec4::new(0., 0., 1., 1.);
+                Vec3::new( 1., -1.,  1.), Vec4::new(1., 0., 1., 1.);
+                Vec3::new( 1., -1., -1.), Vec4::new(1., 0., 0., 1.);
             ],
             quad![geometry::pos_color::Vertex::new:
                 Vec3::new( 1., 1.,-1.), Vec4::new(1.,1.,0.,1.);
@@ -193,149 +208,41 @@ impl State {
                 Vec3::new(-1.,-1.,-1.), Vec4::new(0.,0.,0.,1.);
             ]
         ]);
-        
-        // ---- Scene shader ----
-        let scene_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label:  Some("scene"),
-            source: wgpu::ShaderSource::Wgsl(include_str!("cube.wgsl").into()),
-        });
 
-        // ---- Geometry ----
-        let verts: &[Vertex] = &[
-        ];
+        let instanced = cube_shader.create_instanced_renderer::<SinglePipelineSelector<_, ()>, _, _, _>(
+            &device, &queue, &[
+                PipelineConfig {
+                    cull_mode: Some(Face::Back),
+                    front_face: FrontFace::Ccw,
+                    targets: vec![Some(ColorTargetState {
+                        format: fmt,
+                        blend: None,
+                        write_mask: Default::default(),
+                    })],
+                    depth_stencil: Some(DepthStencilState {
+                        format: TextureFormat::Depth32Float,
+                        depth_write_enabled: true,
+                        depth_compare: CompareFunction::Less,
+                        stencil: Default::default(),
+                        bias: Default::default(),
+                    })
+                }
+            ], cube, camera_setter, 20
+        ).unwrap();
 
-        let mut final_verts: Vec<Vertex> = Vec::with_capacity(36);
-        for face in 0..6usize {
-            let b = face * 4;
-            for i in [0,1,2, 0,2,3] {
-                final_verts.push(verts[b + i]);
-            }
-        }
+        let drawer = instanced.create_drawer();
 
-        let vertex_buf = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label:    Some("vertex_buf"),
-            contents: bytemuck::cast_slice(&final_verts),
-            usage:    wgpu::BufferUsages::VERTEX,
-        });
-
-        let positions = [
-            Vec3::new(  0.,  0.,  10.),
-            Vec3::new(  3.,  0.,  10.),
-            Vec3::new( -3.,  0.,  10.),
-            Vec3::new(  6.,  0.,  15.),
-            Vec3::new( -6.,  0.,  15.),
-            Vec3::new(  0.,  3.,  12.),
-            Vec3::new(  0., -3.,  12.),
-            Vec3::new(  4.,  4.,  18.),
-            Vec3::new( -4., -4.,  18.),
-            Vec3::new(  0.,  0.,  20.),
-        ];
-
-        let instances: Vec<Instance> = positions.iter().map(|&p| Instance {
-            model: Mat4::from_translation(p).to_cols_array_2d(),
-        }).collect();
-
-        let instance_buf = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label:    Some("instance_buf"),
-            contents: bytemuck::cast_slice(&instances),
-            usage:    wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
-        });
-
-        // ---- Camera uniform ----
-        let camera_buf = device.create_buffer(&wgpu::BufferDescriptor {
-            label:              Some("camera_buf"),
-            size:               size_of::<CameraUniform>() as u64,
-            usage:              wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-            mapped_at_creation: false,
-        });
-
-        // ---- Bind group ----
-        let bgl = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            label:   Some("scene_bgl"),
-            entries: &[wgpu::BindGroupLayoutEntry {
-                binding:    0,
-                visibility: wgpu::ShaderStages::VERTEX,
-                ty: wgpu::BindingType::Buffer {
-                    ty:                 wgpu::BufferBindingType::Uniform,
-                    has_dynamic_offset: false,
-                    min_binding_size:   None,
-                },
-                count: None,
-            }],
-        });
-
-        let scene_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label:   Some("scene_bg"),
-            layout:  &bgl,
-            entries: &[wgpu::BindGroupEntry {
-                binding:  0,
-                resource: camera_buf.as_entire_binding(),
-            }],
-        });
-
-        // ---- Pipeline ----
-        let pll = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label:                Some("scene_pll"),
-            bind_group_layouts:   &[&bgl],
-            push_constant_ranges: &[],
-        });
-
-        let geo_layout = wgpu::VertexBufferLayout {
-            array_stride: std::mem::size_of::<Vertex>() as u64,
-            step_mode:    wgpu::VertexStepMode::Vertex,
-            attributes:   &[
-                wgpu::VertexAttribute { shader_location: 0, offset:  0, format: wgpu::VertexFormat::Float32x3 },
-                wgpu::VertexAttribute { shader_location: 1, offset: 12, format: wgpu::VertexFormat::Float32x4 },
-            ],
+        let c1 = CubeDrawer {
+            drawer,
+            pos: Mat4::IDENTITY,
         };
 
-        let inst_layout = wgpu::VertexBufferLayout {
-            array_stride: std::mem::size_of::<Instance>() as u64,
-            step_mode:    wgpu::VertexStepMode::Instance,
-            attributes:   &[
-                wgpu::VertexAttribute { shader_location: 2, offset:  0, format: wgpu::VertexFormat::Float32x4 },
-                wgpu::VertexAttribute { shader_location: 3, offset: 16, format: wgpu::VertexFormat::Float32x4 },
-                wgpu::VertexAttribute { shader_location: 4, offset: 32, format: wgpu::VertexFormat::Float32x4 },
-                wgpu::VertexAttribute { shader_location: 5, offset: 48, format: wgpu::VertexFormat::Float32x4 },
-            ],
-        };
+        let scene = Scene::with_components(vec![
+            Box::new(c1),
 
-        let scene_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label:  Some("scene_pipeline"),
-            layout: Some(&pll),
-            vertex: wgpu::VertexState {
-                module:              &scene_shader,
-                entry_point:         Some("vs_main"),
-                buffers:             &[geo_layout, inst_layout],
-                compilation_options: Default::default(),
-            },
-            fragment: Some(wgpu::FragmentState {
-                module:      &scene_shader,
-                entry_point: Some("fs_main"),
-                targets:     &[Some(wgpu::ColorTargetState {
-                    format:     fmt,
-                    blend:      Some(wgpu::BlendState::REPLACE),
-                    write_mask: wgpu::ColorWrites::ALL,
-                })],
-                compilation_options: Default::default(),
-            }),
-            primitive: wgpu::PrimitiveState {
-                topology:   wgpu::PrimitiveTopology::TriangleList,
-                cull_mode:  Some(wgpu::Face::Back),
-                front_face: wgpu::FrontFace::Ccw,
-                ..Default::default()
-            },
-            depth_stencil: Some(wgpu::DepthStencilState {
-                format:              wgpu::TextureFormat::Depth32Float,
-                depth_write_enabled: true,
-                depth_compare:       wgpu::CompareFunction::Less,
-                stencil:             Default::default(),
-                bias:                Default::default(),
-            }),
-            multisample: wgpu::MultisampleState::default(),
-            multiview:   None,
-            cache:       None,
-        });
+            Box::new(instanced),
+        ]);
+
 
         // ---- egui ----
         let egui_ctx = egui::Context::default();
@@ -360,13 +267,7 @@ impl State {
             surface_config,
             device,
             queue,
-            scene_pipeline,
-            vertex_buf,
-            vertex_count: 36,
-            instance_buf,
-            instance_count: instances.len() as u32,
-            camera_buf,
-            scene_bind_group,
+            scene,
             depth_texture,
             depth_view,
             egui_ctx,
@@ -433,12 +334,12 @@ impl State {
         // ---- camera uniform ----
         let w = self.surface_config.width  as f32;
         let h = self.surface_config.height as f32;
-        let camera = CameraUniform {
-            view: self.view_matrix().to_cols_array_2d(),
-            proj: Mat4::perspective_lh(60f32.to_radians(), w / h.max(1.0), 0.1, 1000.0)
-                .to_cols_array_2d(),
+        let camera = Camera {
+            view: self.view_matrix(),
+            proj: Mat4::perspective_lh(60f32.to_radians(), w / h.max(1.0), 0.1, 1000.0),
         };
-        self.queue.write_buffer(&self.camera_buf, 0, bytemuck::bytes_of(&camera));
+
+        self.scene.pre_render(&self.device, &self.queue, &camera, &());
 
         // ---- egui ----
         let raw_input = self.egui_winit.take_egui_input(&self.window);
@@ -486,11 +387,7 @@ impl State {
                     }),
                     ..Default::default()
                 });
-                pass.set_pipeline(&self.scene_pipeline);
-                pass.set_bind_group(0, &self.scene_bind_group, &[]);
-                pass.set_vertex_buffer(0, self.vertex_buf.slice(..));
-                pass.set_vertex_buffer(1, self.instance_buf.slice(..));
-                pass.draw(0..self.vertex_count, 0..self.instance_count);
+                self.scene.render(&self.device, &mut pass, &camera, &());
             }
             self.queue.submit([encoder.finish()]);
         }

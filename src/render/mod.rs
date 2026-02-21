@@ -3,10 +3,10 @@ pub mod camera;
 pub mod renderer;
 
 use std::collections::HashMap;
-use wgpu::{AddressMode, BindGroup, BindingType, BufferBindingType, BufferSize, CompareFunction, Device, Extent3d, FilterMode, Queue, SamplerBindingType, SamplerBorderColor, ShaderStages, TextureFormat, TextureSampleType, TextureViewDimension, VertexFormat};
+use wgpu::{AddressMode, BindGroup, BindingType, BufferBindingType, BufferSize, CompareFunction, Device, Extent3d, FilterMode, Queue, RenderPass, SamplerBindingType, SamplerBorderColor, ShaderStages, TextureFormat, TextureSampleType, TextureViewDimension, VertexFormat};
 use crate::render::camera::Camera;
 use crate::render::shader::ShaderPipeline;
-use crate::SizedThreadSafe;
+use crate::{Renderable, SizedThreadSafe};
 
 pub trait Data: SizedThreadSafe {
     fn write(&self, buffer: &mut Vec<u8>);
@@ -172,5 +172,31 @@ where
     }
 }
 
+
+pub struct Scene<Shared: Sync + Send> {
+    pub components: Vec<Box<dyn Renderable<Shared>>>
+}
+
+impl<Shared: Send + Sync> Scene<Shared> {
+    pub fn new() -> Self {
+        Self::with_components(Vec::new())
+    }
+    pub fn with_components(components: Vec<Box<dyn Renderable<Shared>>>) -> Self {
+        Self { components }
+    }
+}
+
+impl<Shared: Send + Sync> Renderable<Shared> for Scene<Shared> {
+    fn pre_render(&mut self, device: &Device, queue: &Queue, camera: &Camera, shared: &Shared) {
+        for comp in &mut self.components {
+            comp.pre_render(device, queue, camera, shared)
+        }
+    }
+    fn render(&mut self, device: &Device, pass: &mut RenderPass, camera: &Camera, shared: &Shared) {
+        for comp in &mut self.components {
+            comp.render(device, pass, camera, shared)
+        }
+    }
+}
 
 

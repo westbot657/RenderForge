@@ -91,6 +91,7 @@ where
     queue: &'geo Queue,
 }
 
+#[derive(Clone)]
 pub struct InstanceDrawer<ILayout>
 where
     ILayout: InstanceLayout,

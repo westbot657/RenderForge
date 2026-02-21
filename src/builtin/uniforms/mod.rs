@@ -10,6 +10,15 @@ pub struct CameraUniformLayout {
     pub location: u32,
 }
 
+impl CameraUniformLayout {
+    pub fn create_setter(&self) -> CameraUniformSetter {
+        CameraUniformSetter {
+            layout: self.clone(),
+            handle: None,
+        }
+    }
+}
+
 impl UniformsLayout for CameraUniformLayout {
     fn entries(&self) -> impl Iterator<Item=UniformEntry> {
         [

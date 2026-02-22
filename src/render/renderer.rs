@@ -8,6 +8,7 @@ use crate::geometry::{Geometry, GeometryLayout};
 use crate::render::{Data, InstanceLayout, PipelineSelector, UniformsSetter};
 use crate::render::camera::Camera;
 
+#[cfg_attr(feature = "debug", derive(Debug))]
 pub(crate) struct BaseRenderer
 <GLayout, Primitive, Selector, Uniforms, Shared>
 where
@@ -29,6 +30,7 @@ where
 }
 
 
+#[cfg_attr(feature = "debug", derive(Debug))]
 pub struct InstancedRenderer
 <GLayout, ILayout, Primitive, Selector, Uniforms, Shared>
 where
@@ -45,6 +47,7 @@ where
     pub(crate) instance_count: u32,
 }
 
+#[cfg_attr(feature = "debug", derive(Debug))]
 pub struct ImmediateRenderer
 <GLayout, Primitive, Selector, Uniforms, Shared>
 where
@@ -59,6 +62,7 @@ where
 
 /// Lets you modify an instanced mesh's geometry.
 /// when this is dropped, it will re-upload the geometry
+#[cfg_attr(feature = "debug", derive(Debug))]
 pub struct InstancedGeometryMut
 <'geo, GLayout, ILayout, Primitive, Selector, Uniforms, Shared>
 where
@@ -77,6 +81,7 @@ where
 
 /// Lets you modify an immediate mesh's geometry.
 /// when this is dropped, it will re-upload the geometry
+#[cfg_attr(feature = "debug", derive(Debug))]
 pub struct ImmediateGeometryMut
 <'geo, GLayout, Primitive, Selector, Uniforms, Shared>
 where
@@ -92,6 +97,7 @@ where
 }
 
 #[derive(Clone)]
+#[cfg_attr(feature = "debug", derive(Debug))]
 pub struct InstanceDrawer<ILayout>
 where
     ILayout: InstanceLayout,

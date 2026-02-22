@@ -1,11 +1,8 @@
 [workspace]
-members = [
-    "test_app"
-]
 
 [package]
 name = "renderforge"
-version = "0.3.4"
+version = "0.3.5"
 edition = "2024"
 description = "A Rendering framework built on top of glow"
 license = "GPL-3.0-only"
@@ -13,7 +10,6 @@ repository = "https://github.com/westbot657/RenderForge"
 readme = "README.md"
 keywords = ["rendering", "wgpu"]
 categories = ["rendering"]
-exclude = ["/test_app"]
 
 [features]
 default = ["opengl", "vulkan", "egui"]

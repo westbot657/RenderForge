@@ -45,6 +45,7 @@ use std::collections::HashSet;
 use std::sync::Arc;
 
 #[cfg(feature = "egui")]
+#[cfg_attr(feature = "debug", derive(Debug))]
 pub struct Viewport {
     texture: wgpu::Texture,
     view: wgpu::TextureView,
@@ -169,6 +170,8 @@ impl Core {
         if w == 0 || h == 0 { return }
 
         viewport.resize_if_needed(&self.device, &mut self.egui_renderer, w, h, self.surface_format);
+
+        scene.pre_render(&self.device, &self.queue, self.camera(), shared);
 
         let mut encoder = self.device.create_command_encoder(&Default::default());
         {

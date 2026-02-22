@@ -362,14 +362,21 @@ where
             offset += format.size();
         }
 
-        let mut buffers = vec![VertexBufferLayout {
-            array_stride: self.layout.geometry_layout.span(),
-            step_mode: VertexStepMode::Vertex,
-            attributes: geo_attrs.as_slice(),
-        }];
+        let mut buffers = Vec::new();
+
+        if self.layout.geometry_layout.span() > 0 {
+            buffers.push(VertexBufferLayout {
+                array_stride: self.layout.geometry_layout.span(),
+                step_mode: VertexStepMode::Vertex,
+                attributes: geo_attrs.as_slice(),
+            });
+        }
 
         let mut inst_attrs = Vec::new();
         if ILayout::is_instanced() {
+            if buffers.is_empty() {
+                return Err(String::from("Instanced rendering requires a geometry buffer"))
+            }
             let mut offset = 0;
             for (loc, format) in self.layout.instance_layout.attributes() {
                 inst_attrs.push(VertexAttribute {
@@ -543,7 +550,7 @@ where
             }
             buf.unmap();
         }
-        
+
         base.vertex_count = vertex_count;
         base.geometry_dirty = false;
 

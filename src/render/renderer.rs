@@ -20,7 +20,7 @@ where
     pub(crate) geometry: Geometry<GLayout, Primitive>,
     pub(crate) selector: Selector,
 
-    pub(crate) vertex_buffer: Buffer,
+    pub(crate) vertex_buffer: Option<Buffer>,
     pub(crate) vertex_count: u32,
 
     pub(crate) geometry_dirty: bool,
@@ -299,8 +299,9 @@ where
     }
     fn render(&mut self, _: &Device, pass: &mut RenderPass, _: &Camera, shared: &Shared) {
         self.selector.select(shared).render(pass);
-        if self.vertex_buffer.size() == 0 { return }
-        pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
+        if let Some(buf) = &self.vertex_buffer {
+            pass.set_vertex_buffer(0, buf.slice(..));
+        }
     }
 
     fn reupload(&mut self, device: &Device, queue: &Queue) {
@@ -312,15 +313,17 @@ where
 
         self.vertex_count = self.geometry.primitives.len() as u32 * Primitive::VERTICES;
 
-        if data.len() > self.vertex_buffer.size() as usize {
-            self.vertex_buffer.destroy();
-            self.vertex_buffer = device.create_buffer_init(&BufferInitDescriptor {
-                label: Some("vertex buffer"),
-                usage: BufferUsages::VERTEX | BufferUsages::COPY_DST,
-                contents: data.as_slice()
-            })
-        } else {
-            queue.write_buffer(&self.vertex_buffer, 0, data.as_slice())
+        if let Some(buf) = &mut self.vertex_buffer {
+            if data.len() > buf.size() as usize {
+                buf.destroy();
+                *buf = device.create_buffer_init(&BufferInitDescriptor {
+                    label: Some("vertex buffer"),
+                    usage: BufferUsages::VERTEX | BufferUsages::COPY_DST,
+                    contents: data.as_slice(),
+                })
+            } else {
+                queue.write_buffer(buf, 0, data.as_slice())
+            }
         }
 
     }

@@ -473,12 +473,17 @@ where
             device, queue, configs, uniforms
         )?)?;
 
-        let vertex_buffer = device.create_buffer(&BufferDescriptor {
-            label: Some("vertex buffer"),
-            size: geometry_size,
-            usage: BufferUsages::VERTEX | BufferUsages::COPY_DST,
-            mapped_at_creation: vertex_init,
-        });
+        let vertex_buffer = if self.layout.geometry_layout.span() > 0 {
+            let vertex_buffer = device.create_buffer(&BufferDescriptor {
+                label: Some("vertex buffer"),
+                size: geometry_size,
+                usage: BufferUsages::VERTEX | BufferUsages::COPY_DST,
+                mapped_at_creation: vertex_init,
+            });
+            Some(vertex_buffer)
+        } else {
+            None
+        };
 
         Ok(BaseRenderer {
             geometry,
@@ -529,13 +534,16 @@ where
             device, queue, geometry, configs, uniforms_setter, size, true
         )?;
 
-        let mut bytes = Vec::new();
-        base.geometry.write(&mut bytes);
-        {
-            let mut view = base.vertex_buffer.slice(..).get_mapped_range_mut();
-            view[..bytes.len()].copy_from_slice(&bytes);
+        if let Some(buf) = &base.vertex_buffer {
+            let mut bytes = Vec::new();
+            base.geometry.write(&mut bytes);
+            {
+                let mut view = buf.slice(..).get_mapped_range_mut();
+                view[..bytes.len()].copy_from_slice(&bytes);
+            }
+            buf.unmap();
         }
-        base.vertex_buffer.unmap();
+        
         base.vertex_count = vertex_count;
         base.geometry_dirty = false;
 

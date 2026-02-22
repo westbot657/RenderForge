@@ -243,7 +243,10 @@ impl Core {
                     view,
                     resolve_target: None,
                     depth_slice: None,
-                    ops: wgpu::Operations { load: wgpu::LoadOp::Load, store: wgpu::StoreOp::Store },
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Load,
+                        store: wgpu::StoreOp::Store
+                    },
                 })],
                 depth_stencil_attachment: None,
                 ..Default::default()
@@ -288,7 +291,10 @@ impl Core {
         let egui_ctx = egui::Context::default();
         let egui_winit = egui_winit::State::new(egui_ctx.clone(), egui_ctx.viewport_id(), &window, None, None, None);
         let egui_renderer = egui_wgpu::Renderer::new(&device, fmt, egui_wgpu::RendererOptions {
-            msaa_samples: 1, depth_stencil_format: None, dithering: false, predictable_texture_filtering: false,
+            msaa_samples: 1,
+            depth_stencil_format: None,
+            dithering: false,
+            predictable_texture_filtering: false,
         });
         Self {
             window, surface: Some(surface), surface_config,

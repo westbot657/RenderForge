@@ -141,6 +141,7 @@ impl Core {
     pub fn device(&self) -> &Arc<Device> { &self.device }
     pub fn queue(&self) -> &Arc<Queue> { &self.queue }
     pub fn depth_view(&self) -> &wgpu::TextureView { &self.depth_view }
+    pub fn egui_context(&self) -> &egui::Context { &self.egui_ctx }
 
     pub fn suppress_key(&mut self, key: KeyCode) { self.suppress_keys.insert(key); }
     pub fn unsuppress_key(&mut self, key: KeyCode) { self.suppress_keys.remove(&key); }

@@ -100,6 +100,31 @@ where
     pub uniforms_layout: ULayout,
 }
 
+impl<GLayout, ILayout, ULayout> ShaderLayout<GLayout, ILayout, ULayout>
+where
+    GLayout: GeometryLayout,
+    ILayout: InstanceLayout,
+    ULayout: UniformsLayout,
+{
+    pub fn new(geometry_layout: GLayout, instance_layout: ILayout, uniforms_layout: ULayout) -> Self {
+        Self { geometry_layout, instance_layout, uniforms_layout }
+    }
+}
+impl<GLayout, ILayout, ULayout> ShaderLayout<GLayout, ILayout, ULayout>
+where
+    GLayout: GeometryLayout + Default,
+    ILayout: InstanceLayout + Default,
+    ULayout: UniformsLayout,
+{
+    pub fn uniforms(uniforms_layout: ULayout) -> Self {
+        Self {
+            geometry_layout: Default::default(),
+            instance_layout: Default::default(),
+            uniforms_layout
+        }
+    }
+}
+
 #[derive(Clone)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct Shader<GLayout, ILayout, ULayout>

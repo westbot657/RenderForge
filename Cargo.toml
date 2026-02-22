@@ -5,7 +5,7 @@ members = [
 
 [package]
 name = "renderforge"
-version = "0.3.1"
+version = "0.3.2"
 edition = "2024"
 description = "A Rendering framework built on top of glow"
 license = "GPL-3.0-only"

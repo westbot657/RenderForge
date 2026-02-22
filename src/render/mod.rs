@@ -39,6 +39,7 @@ pub enum UniformType {
     Buffer {
         has_dynamic_offset: bool,
         min_binding_size: Option<BufferSize>,
+        /// Length of the buffer in bytes
         size: u64,
     },
     Sampler {
@@ -60,8 +61,13 @@ pub enum UniformType {
         dimension: TextureViewDimension,
         format: TextureFormat,
         multisampled: bool,
+        /// Mip count of texture.
+        /// For a texture with no extra mips, this must be 1.
         mip_level_count: u32,
+        /// Sample count of texture.
+        /// If this is not 1, texture must have multisampled set to true.
         sample_count: u32,
+        /// 3D texture dimensions
         size: Extent3d,
     }
 }
@@ -90,9 +96,13 @@ impl UniformType {
 
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct UniformEntry {
+    /// The name of the uniform
     pub name: String,
+    /// The binding location of this uniform
     pub location: u32,
+    /// Which shader steps the uniform is used in
     pub visibility: ShaderStages,
+    /// The uniform type
     pub uniform_type: UniformType,
 }
 

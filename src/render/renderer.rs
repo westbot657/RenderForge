@@ -299,6 +299,7 @@ where
     }
     fn render(&mut self, _: &Device, pass: &mut RenderPass, _: &Camera, shared: &Shared) {
         self.selector.select(shared).render(pass);
+        if self.vertex_buffer.size() == 0 { return }
         pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
     }
 
